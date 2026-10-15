@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>MioLog</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="description" content="MioLog — a personal, offline training log. Your data stays on your device.">
+<meta name="theme-color" content="#f3f4f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-title" content="MioLog">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+@font-face{font-family:"Barlow Condensed";font-weight:700;font-display:swap;src:url(fonts/barlow-condensed-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:"IBM Plex Sans";font-weight:400;font-display:swap;src:url(fonts/ibm-plex-sans-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"IBM Plex Sans";font-weight:600;font-display:swap;src:url(fonts/ibm-plex-sans-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"IBM Plex Mono";font-weight:500;font-display:swap;src:url(fonts/ibm-plex-mono-latin-500-normal.woff2) format("woff2")}
+[hidden]{display:none!important} html{-webkit-text-size-adjust:100%} body{margin:0}
+</style>
+<style>
+/* Layout: one narrow column built for a phone between sets — tabs, workout picker, one card per exercise. */
+:root{
+  --bg:#f3f4f6; --surface:#ffffff; --line:#dde1e8; --fg:#16191f; --muted:#5d6573;
+  --accent:#007a52; --accent-ink:#ffffff; --accent-soft:#d9f5ea;
+  --up:#1d7a46; --up-soft:#dff2e7; --hold:#8a5a00; --hold-soft:#fbefd6; --down:#b42b2b; --down-soft:#f8e1e1;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111318; --surface:#1a1d24; --line:#2c313b; --fg:#e8eaee; --muted:#9aa2b1;
+  --accent:#00f5a4; --accent-ink:#04140e; --accent-soft:#0d2a20;
+  --up:#5fcf8f; --up-soft:#16301f; --hold:#e6b452; --hold-soft:#33290f; --down:#f08080; --down-soft:#3a1a1a;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111318; --surface:#1a1d24; --line:#2c313b; --fg:#e8eaee; --muted:#9aa2b1;
+  --accent:#00f5a4; --accent-ink:#04140e; --accent-soft:#0d2a20;
+  --up:#5fcf8f; --up-soft:#16301f; --hold:#e6b452; --hold-soft:#33290f; --down:#f08080; --down-soft:#3a1a1a;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45;padding-inline:max(16px,env(safe-area-inset-left));padding-top:max(12px,env(safe-area-inset-top));padding-bottom:calc(48px + env(safe-area-inset-bottom));-webkit-tap-highlight-color:transparent}
+.wrap{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+h1{font-family:var(--f-display);font-weight:700;font-size:30px;letter-spacing:.01em;margin:0;text-transform:uppercase;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:700;font-size:21px;margin:0;text-transform:uppercase;letter-spacing:.02em}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-top:4px}
+.brand{display:flex;align-items:center;gap:10px}
+.mark{width:56px;height:56px;border-radius:13px;flex:none;display:block;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.brand h1{font-size:34px;line-height:1;letter-spacing:.02em;text-transform:none}
+.brand h1 b{color:var(--accent);font-weight:700}
+.brand small{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.14em;margin-top:2px}
+.langbtn{font:600 13px var(--f-num);color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 11px;cursor:pointer;letter-spacing:.06em}
+.pe-row{display:grid;grid-template-columns:1fr auto;gap:6px 8px;align-items:center;border-top:1px solid var(--line);padding-top:8px}
+.pe-name{font-size:14px;min-width:0}
+.pe-ctl{display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.pe-ctl input{width:46px;padding:6px 2px;font-size:15px}
+.pe-ctl span{font-size:12px;color:var(--muted)}
+.ib{font:600 13px var(--f-body);min-width:32px;height:32px;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:7px;cursor:pointer;padding:0 8px}
+.ib.danger,.ib.confirm{color:var(--down);border-color:var(--down)}
+.ib.confirm{background:var(--down);color:var(--bg)}
+.ib.add{border-style:dashed;width:100%;height:38px;color:var(--accent);border-color:var(--accent)}
+.pe-two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.lib{display:flex;flex-direction:column;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px}
+.lib-list{max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:4px}
+.lib-list button{all:unset;cursor:pointer;padding:8px 10px;border-radius:7px;background:var(--surface);border:1px solid var(--line);font-size:14px;display:flex;justify-content:space-between;gap:8px}
+.lib-list button small{color:var(--muted);font-family:var(--f-num);font-size:11.5px;white-space:nowrap}
+.tpl{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+.privacy{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:8px}
+.status{font-size:12px;color:var(--muted)}
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px}
+.tabs button{flex:1;border:0;background:transparent;color:var(--muted);font:600 14px var(--f-body);padding:9px;border-radius:7px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:6px}
+.picker button{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:9px;padding:8px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0}
+.picker b{font-family:var(--f-display);font-size:19px;text-transform:uppercase}
+.picker span{font-size:10.5px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.picker button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.picker .next{color:var(--accent);font-weight:600}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;min-width:0}
+input,select,textarea{font:500 16px var(--f-body);color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+input.n{font-family:var(--f-num);text-align:center;padding:8px 4px;font-variant-numeric:tabular-nums}
+.ex{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.ex-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.ex-h h3{margin:0;font-size:16px;font-weight:600;min-width:0}
+.target{font-family:var(--f-num);font-size:13px;color:var(--muted);white-space:nowrap}
+.last{font-size:13px;color:var(--muted)}
+.last .num{font-family:var(--f-num);color:var(--fg)}
+.pill{display:inline-block;font-size:12.5px;font-weight:600;padding:5px 9px;border-radius:7px;line-height:1.35}
+.pill.up{background:var(--up-soft);color:var(--up)} .pill.hold{background:var(--hold-soft);color:var(--hold)}
+.pill.down{background:var(--down-soft);color:var(--down)} .pill.new{background:var(--line);color:var(--fg)}
+.sets{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px 8px;align-items:center}
+.sets.one{grid-template-columns:auto 1fr}
+.sets .hd{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;text-align:center}
+.sets .sn{font-family:var(--f-num);font-size:12px;color:var(--muted);width:22px}
+.rir{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.rir .opts{display:flex;gap:4px}
+.rir button{font:500 13px var(--f-num);min-width:36px;padding:6px 8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:7px;cursor:pointer}
+.rir button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.save{position:sticky;bottom:calc(10px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px;box-shadow:0 6px 20px rgba(0,0,0,.12)}
+.btn{font:600 15px var(--f-body);border:0;border-radius:9px;padding:11px 16px;cursor:pointer;background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+.btn.danger{background:var(--down);color:var(--bg)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.save .msg{font-size:13px;color:var(--muted);flex:1;min-width:0}
+.note{font-size:13px;color:var(--muted)}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:18px;color:var(--muted);font-size:14px}
+.hist-sess{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.hist-sess .row{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
+.hist-sess .d{font-family:var(--f-num);font-size:13px;color:var(--muted)}
+.hist-sess ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:3px;font-size:13.5px}
+.hist-sess li{display:flex;justify-content:space-between;gap:10px}
+.hist-sess li .v{font-family:var(--f-num);font-size:12.5px;color:var(--muted);text-align:right}
+.actions{display:flex;gap:8px}
+.actions button{font:500 13px var(--f-body);background:none;border:1px solid var(--line);color:var(--fg);border-radius:7px;padding:5px 10px;cursor:pointer}
+.actions button.confirm{background:var(--down);color:var(--bg);border-color:var(--down)}
+.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+td.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+.chart{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px}
+.chart svg{display:block;width:100%;height:auto}
+.chart text{font-family:var(--f-num);font-size:10px;fill:var(--muted)}
+.info{all:unset;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--muted);color:var(--muted);font:700 12px var(--f-body);flex:none;margin-left:6px;vertical-align:middle}
+.info[aria-expanded="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.desc{font-size:13.5px;line-height:1.5;background:var(--accent-soft);border-radius:8px;padding:9px 11px;color:var(--fg)}
+.desc ol{margin:4px 0 0;padding-left:18px}.desc p{margin:0 0 4px}
+.warm{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.warm-h{all:unset;cursor:pointer;display:flex;justify-content:space-between;align-items:baseline;gap:10px;width:100%}
+.warm-h h3{margin:0;font-size:16px;font-weight:600}
+.warm-h span{font-size:13px;color:var(--muted)}
+.wsub{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
+.witem{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:8px}
+.wrow{display:flex;align-items:center;gap:10px}
+.wrow input{width:20px;height:20px;flex:none;accent-color:var(--accent)}
+.wrow label{flex:1;min-width:0;font-size:14px}
+.wrow .dose{font-family:var(--f-num);font-size:12px;color:var(--muted);white-space:nowrap}
+.witem.done label{color:var(--muted);text-decoration:line-through}
+@media (prefers-reduced-motion:no-preference){.tabs button,.picker button{transition:background .15s,border-color .15s}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">
+      <img class="mark" src="icon-192.png" alt="" width="56" height="56">
+      <div><h1>Mio<b>Log</b></h1><small id="brand-sub">Training log</small></div>
+    </div>
+    <div class="topright"><button type="button" class="langbtn" id="btn-lang">IT</button></div>
+    <span class="status" id="status" style="flex-basis:100%">Loading…</span>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-log" aria-selected="true">Workout</button>
+    <button role="tab" id="tab-hist" aria-selected="false">History</button>
+    <button role="tab" id="tab-prog" aria-selected="false">Program</button>
+  </div>
+
+  <section id="view-log" class="wrap" style="gap:12px">
+    <div class="picker" id="picker"></div>
+    <div class="meta">
+      <label class="f" for="f-date">Date<input type="date" id="f-date"></label>
+      <label class="f" for="f-bw">Bodyweight (kg)<input class="n" id="f-bw" inputmode="decimal" placeholder="optional"></label>
+    </div>
+    <div id="editing" class="note" hidden></div>
+    <div id="exlist" class="wrap" style="gap:10px"></div>
+    <label class="f" for="f-note">Session notes<textarea id="f-note" rows="2" placeholder="How it felt, aches, technique…"></textarea></label>
+    <div class="save">
+      <span class="msg" id="savemsg">Empty sets are not saved.</span>
+      <button class="btn" id="btn-save">Save session</button>
+    </div>
+  </section>
+
+  <section id="view-prog" class="wrap" style="gap:12px" hidden>
+    <div class="ex">
+      <label class="f" for="p-name">Program name<input id="p-name"></label>
+      <button type="button" class="ib" id="p-new" style="height:38px">New empty program</button>
+      <div class="note" id="p-msg"></div>
+    </div>
+    <div id="p-wks" class="wrap" style="gap:10px"></div>
+    <button type="button" class="ib add" id="p-addwk">+ Add workout</button>
+    <div class="note" id="p-help"></div>
+  </section>
+
+  <section id="view-hist" class="wrap" style="gap:12px" hidden>
+    <label class="f" for="f-ex">Exercise<select id="f-ex"></select></label>
+    <div id="exhist" class="wrap" style="gap:10px"></div>
+    <h2 id="h-sessions">Sessions</h2>
+    <div id="sesslist" class="wrap" style="gap:10px"></div>
+    <h2 id="h-data">Data &amp; program</h2>
+    <div class="hist-sess" id="datapanel">
+      <div class="note" id="backupinfo"></div>
+      <div class="note" id="programinfo"></div>
+      <div class="actions" style="flex-wrap:wrap">
+        <button type="button" id="btn-export">Export data</button>
+        <button type="button" id="btn-import">Import file (data or program)</button>
+        <button type="button" id="btn-reset-prog">Clear program</button>
+      </div>
+      <input type="file" id="file-import" accept=".json,application/json" hidden>
+      <div class="note" id="datamsg"></div>
+      <div class="privacy" id="disclaimer"></div>
+      <div class="privacy" id="privacy">MioLog never connects to any server: sessions and program stay on this device. They only leave when you export them.</div>
+    </div>
+  </section>
+</div>
+
+<script>
+const BASE_PROGRAM = {"EX": {}, "WK": {"W1": {"name": {"en": "Workout 1", "it": "Allenamento 1"}, "sub": "", "warm": "none", "items": []}}, "ORDER": ["W1"], "PERSIDE": {}, "DESC": {}, "WARM": {"common": [{"id": "w_cardio", "name": {"en": "Easy cardio", "it": "Cardio leggero"}, "dose": {"en": "5 min", "it": "5 min"}, "d": {"en": "<p>Bike, elliptical or brisk walk until you feel slightly warm. Keep it easy: you can talk without effort.</p>", "it": "<p>Bici, ellittica o camminata veloce, fino a sentire un leggero calore. Deve essere facile: si parla senza fatica.</p>"}}, {"id": "w_ankle", "name": {"en": "Banded ankle mobilization", "it": "Mobilizzazione caviglia con elastico"}, "dose": {"en": "10–15/side", "it": "10–15/lato"}, "d": {"en": "<p>Foot on a box, band anchored low behind you pulling the ankle back: place it on the front of the ankle, just below the ankle bones (not on the shin).</p><p>Drive the knee forward past the toes keeping the heel down, then back; rhythmic oscillations.</p>", "it": "<p>Piede sul box, elastico fissato in basso alla spalliera che tira la caviglia indietro: posizionalo sul davanti della caviglia, appena sotto i malleoli (non sullo stinco).</p><p>Porta il ginocchio avanti oltre le dita tenendo il tallone giù, torna indietro; oscillazioni ritmiche.</p>"}}, {"id": "w_soleo", "name": {"en": "Wall soleus stretch", "it": "Stretch soleo al muro"}, "dose": {"en": "30 sec/side", "it": "30 sec/lato"}, "d": {"en": "<p>Hands on the wall, foot to stretch behind, knee bent. Push the knee forward keeping the heel down until you feel a stretch low in the calf.</p>", "it": "<p>Mani al muro, piede da allungare dietro, ginocchio piegato. Porta il ginocchio avanti tenendo il tallone a terra finché senti tirare nella parte bassa del polpaccio.</p>"}}], "upper": [{"id": "w_er", "name": {"en": "Band external rotations", "it": "Extrarotazioni con elastico"}, "dose": {"en": "2 × 12–15/side", "it": "2 × 12–15/lato"}, "d": {"en": "<p>Band at elbow height, standing side-on. Elbow bent at 90° and tucked to your side (rolled towel in between). Rotate the forearm outward without the elbow leaving your side, return slowly.</p>", "it": "<p>Elastico all'altezza del gomito, di fianco. Gomito piegato a 90° e attaccato al fianco (asciugamano arrotolato in mezzo). Ruota l'avambraccio verso l'esterno senza staccare il gomito, torna lento.</p>"}}, {"id": "w_ext", "name": {"en": "Banded shoulder extension, band at elbow", "it": "Estensione spalla, elastico al gomito"}, "dose": {"en": "2 × 10–12/side", "it": "2 × 10–12/lato"}, "d": {"en": "<p>Facing the anchor, band in the crook of the elbow, hand behind your back at lower-back height.</p><p>Drive the elbow back squeezing the shoulder blade toward the spine, pause 1 sec. Shoulder down, torso still (don't rotate).</p>", "it": "<p>Di fronte alla spalliera, elastico nella piega del gomito, mano dietro la schiena all'altezza lombare.</p><p>Porta il gomito indietro stringendo la scapola verso la colonna, pausa 1 sec. Spalla bassa, busto fermo (non ruotare).</p>"}}, {"id": "w_fullcan", "name": {"en": "Light full can", "it": "Full can leggero"}, "dose": {"en": "1 × 12–15", "it": "1 × 12–15"}, "d": {"en": "<p>Standing, 1–2 kg per hand or no weight, thumbs up. Raise straight arms about 30° forward (an open \"V\" in front of you) to shoulder height, lower in 2–3 sec.</p><p>Shoulders down, torso still, no pain at the front of the shoulder.</p>", "it": "<p>In piedi, 1–2 kg per mano o senza pesi, pollici in su. Solleva le braccia tese circa 30° in avanti (una \"V\" aperta davanti a te) fino all'altezza delle spalle, scendi in 2–3 sec.</p><p>Spalle basse, busto fermo, nessun dolore davanti alla spalla.</p>"}}, {"id": "w_hang", "name": {"en": "Dead hang + scapular pulls", "it": "Dead hang + trazioni scapolari"}, "dose": {"en": "15–20 sec + 8", "it": "15–20 sec + 8"}, "d": {"en": "<p>Hang from the bar, firm grip, active shoulders. Then, arms straight, pull the shoulder blades down and let them up (your body rises a few cm) without bending the elbows.</p>", "it": "<p>Appeso alla sbarra, presa salda, spalle attive. Poi, braccia tese, abbassa e alza solo le scapole (il corpo sale di pochi cm) senza piegare i gomiti.</p>"}}, {"id": "w_ramp", "name": {"en": "Ramp-up of the first exercise", "it": "Rampa del primo esercizio"}, "dose": {"en": "1–2 light sets", "it": "1–2 serie leggere"}, "d": {"en": "<p>1–2 light sets of the first loaded exercise, few reps, building up to the working weight.</p>", "it": "<p>1–2 serie leggere del primo esercizio con carico, poche ripetizioni, salendo verso il carico di lavoro.</p>"}}], "lower": [{"id": "w_bridge", "name": {"en": "Bodyweight glute bridge", "it": "Ponte glutei a corpo libero"}, "dose": {"en": "1 × 10–12", "it": "1 × 10–12"}, "d": {"en": "<p>On your back, feet down. Drive the hips up squeezing the glutes, pause 2 sec, neutral lower back (don't arch).</p>", "it": "<p>Supino, piedi a terra. Spingi il bacino in alto stringendo i glutei, pausa 2 sec, lombare neutra (non inarcare).</p>"}}, {"id": "w_squat", "name": {"en": "Supported deep squat hold", "it": "Deep squat hold con appoggio"}, "dose": {"en": "1 min", "it": "1 min"}, "d": {"en": "<p>Deep squat holding onto a support, heels down (wedge under them if needed). Elbows pushing the knees out, chest up.</p>", "it": "<p>Accosciata profonda tenendoti a un appoggio, talloni giù (rialzo sotto se serve). Gomiti che spingono le ginocchia verso l'esterno, busto alto.</p>"}}, {"id": "w_hang", "name": {"en": "Dead hang + scapular pulls", "it": "Dead hang + trazioni scapolari"}, "dose": {"en": "15–20 sec + 8", "it": "15–20 sec + 8"}, "d": {"en": "<p>Hang from the bar, firm grip, active shoulders. Then, arms straight, pull the shoulder blades down and let them up without bending the elbows.</p>", "it": "<p>Appeso alla sbarra, presa salda, spalle attive. Poi, braccia tese, abbassa e alza solo le scapole senza piegare i gomiti.</p>"}}, {"id": "w_ramp", "name": {"en": "Ramp-up of the first exercise", "it": "Rampa del primo esercizio"}, "dose": {"en": "1–2 light sets", "it": "1–2 serie leggere"}, "d": {"en": "<p>1–2 light sets of the first loaded exercise, few reps, building up to the working weight.</p>", "it": "<p>1–2 serie leggere del primo esercizio con carico, poche ripetizioni, salendo verso il carico di lavoro.</p>"}}], "full": [{"id": "w_pullapart", "name": {"en": "Band pull-apart", "it": "Band pull-apart"}, "dose": {"en": "2 × 12–15", "it": "2 × 12–15"}, "d": {"en": "<p>Band at shoulder height, arms straight. Pull it apart until it touches the chest, squeezing the shoulder blades; shoulders down.</p>", "it": "<p>Elastico all'altezza delle spalle, braccia tese. Aprilo fino a toccare il petto stringendo le scapole; spalle basse.</p>"}}, {"id": "w_bwsquat", "name": {"en": "Bodyweight squat", "it": "Squat a corpo libero"}, "dose": {"en": "1 × 10", "it": "1 × 10"}, "d": {"en": "<p>Controlled squats at a comfortable depth, heels down, knees tracking over the toes.</p>", "it": "<p>Squat controllati a una profondità comoda, talloni giù, ginocchia che seguono le punte.</p>"}}, {"id": "w_bridge", "name": {"en": "Bodyweight glute bridge", "it": "Ponte glutei a corpo libero"}, "dose": {"en": "1 × 10–12", "it": "1 × 10–12"}, "d": {"en": "<p>On your back, feet down. Drive the hips up squeezing the glutes, pause 2 sec, neutral lower back (don't arch).</p>", "it": "<p>Supino, piedi a terra. Spingi il bacino in alto stringendo i glutei, pausa 2 sec, lombare neutra (non inarcare).</p>"}}, {"id": "w_ramp", "name": {"en": "Ramp-up of the first exercise", "it": "Rampa del primo esercizio"}, "dose": {"en": "1–2 light sets", "it": "1–2 serie leggere"}, "d": {"en": "<p>1–2 light sets of the first loaded exercise, few reps, building up to the working weight.</p>", "it": "<p>1–2 serie leggere del primo esercizio con carico, poche ripetizioni, salendo verso il carico di lavoro.</p>"}}]}};
+const LIB = {"EX": {"trazioni": {"name": {"en": "Pull-ups", "it": "Trazioni"}, "kind": "bw", "lo": 4, "hi": 8}, "negative": {"name": {"en": "Negative pull-ups", "it": "Trazioni negative"}, "kind": "bw", "lo": 3, "hi": 5}, "rem_trx": {"name": {"en": "TRX row", "it": "Rematore TRX"}, "kind": "bw", "lo": 10, "hi": 12, "up": {"en": "Range done: walk your feet closer to the anchor (body more horizontal)", "it": "Range completato: avvicina i piedi al punto di aggancio (corpo più orizzontale)"}}, "rem_cavo": {"name": {"en": "Seated cable row", "it": "Rematore cavo basso"}, "kind": "kg", "lo": 10, "hi": 12}, "panca_mb": {"name": {"en": "Dumbbell bench press", "it": "Panca con manubri"}, "kind": "kg", "lo": 8, "hi": 10}, "face_pull": {"name": {"en": "Face pull", "it": "Face pull"}, "kind": "kg", "lo": 12, "hi": 15}, "rdl": {"name": {"en": "Dumbbell Romanian deadlift", "it": "Stacco rumeno con manubri"}, "kind": "kg", "lo": 8, "hi": 10}, "bulgarian": {"name": {"en": "Bulgarian split squat", "it": "Bulgarian split squat"}, "kind": "kg", "lo": 8, "hi": 10}, "hip_thrust": {"name": {"en": "Hip thrust / glute bridge", "it": "Hip thrust o ponte glutei"}, "kind": "kg", "lo": 10, "hi": 12}, "polpacci": {"name": {"en": "Single-leg calf raise", "it": "Polpacci su una gamba"}, "kind": "kg", "lo": 12, "hi": 15}, "plank": {"name": {"en": "Plank", "it": "Plank"}, "kind": "time", "lo": 30, "hi": 40}, "assistite": {"name": {"en": "Band-assisted pull-ups", "it": "Trazioni assistite con elastico"}, "kind": "bw", "lo": 6, "hi": 8}, "lat": {"name": {"en": "Lat pulldown", "it": "Lat machine"}, "kind": "kg", "lo": 8, "hi": 10}, "shoulder": {"name": {"en": "Shoulder press", "it": "Shoulder press"}, "kind": "kg", "lo": 8, "hi": 10}, "rem_mb": {"name": {"en": "Chest-supported dumbbell row", "it": "Rematore manubri su panca inclinata"}, "kind": "kg", "lo": 10, "hi": 12}, "goblet": {"name": {"en": "Goblet squat", "it": "Goblet squat"}, "kind": "kg", "lo": 8, "hi": 10}, "leg_press": {"name": {"en": "Leg press", "it": "Leg press"}, "kind": "kg", "lo": 10, "hi": 12}, "back_ext": {"name": {"en": "Back extension", "it": "Back extension"}, "kind": "kg", "lo": 10, "hi": 12}, "suitcase_dl": {"name": {"en": "Suitcase deadlift", "it": "Suitcase deadlift"}, "kind": "kg", "lo": 6, "hi": 8}, "pallof": {"name": {"en": "Pallof press", "it": "Pallof press"}, "kind": "kg", "lo": 10, "hi": 10}, "dead_bug": {"name": {"en": "Dead bug", "it": "Dead bug"}, "kind": "bw", "lo": 8, "hi": 8}, "alzate": {"name": {"en": "Lateral raise", "it": "Alzate laterali"}, "kind": "kg", "lo": 12, "hi": 15}, "step_up": {"name": {"en": "Box step-up", "it": "Step-up su box"}, "kind": "kg", "lo": 8, "hi": 10}, "leg_ext": {"name": {"en": "Leg extension", "it": "Leg extension"}, "kind": "kg", "lo": 10, "hi": 12}, "dip_hold": {"name": {"en": "Top hold on parallel bars", "it": "Tenuta in alto alle parallele"}, "kind": "time", "lo": 15, "hi": 30, "up": {"en": "Range done: move on to step 2 (partial negatives) when you're ready", "it": "Range completato: passa al gradino 2 (negative parziali) quando sei pronto"}}, "back_squat": {"name": {"en": "Barbell back squat", "it": "Squat con bilanciere"}, "kind": "kg", "lo": 6, "hi": 8}, "bench_bb": {"name": {"en": "Barbell bench press", "it": "Panca piana con bilanciere"}, "kind": "kg", "lo": 6, "hi": 8}, "deadlift": {"name": {"en": "Deadlift", "it": "Stacco da terra"}, "kind": "kg", "lo": 5, "hi": 8}, "ohp": {"name": {"en": "Overhead press", "it": "Lento avanti con bilanciere"}, "kind": "kg", "lo": 6, "hi": 8}, "row_bb": {"name": {"en": "Barbell row", "it": "Rematore con bilanciere"}, "kind": "kg", "lo": 8, "hi": 10}, "incline_db": {"name": {"en": "Incline dumbbell press", "it": "Panca inclinata con manubri"}, "kind": "kg", "lo": 8, "hi": 10}, "pushup": {"name": {"en": "Push-up", "it": "Piegamenti (push-up)"}, "kind": "bw", "lo": 8, "hi": 15}, "dips": {"name": {"en": "Parallel bar dips", "it": "Dip alle parallele"}, "kind": "bw", "lo": 6, "hi": 10}, "pike_pushup": {"name": {"en": "Pike push-up", "it": "Pike push-up"}, "kind": "bw", "lo": 6, "hi": 10}, "chinup": {"name": {"en": "Chin-ups", "it": "Trazioni presa supina"}, "kind": "bw", "lo": 4, "hi": 8}, "curl_db": {"name": {"en": "Dumbbell curl", "it": "Curl con manubri"}, "kind": "kg", "lo": 10, "hi": 12}, "triceps_pd": {"name": {"en": "Triceps pushdown", "it": "Pushdown tricipiti al cavo"}, "kind": "kg", "lo": 10, "hi": 12}, "leg_curl": {"name": {"en": "Leg curl", "it": "Leg curl"}, "kind": "kg", "lo": 10, "hi": 12}, "lunge": {"name": {"en": "Walking lunge", "it": "Affondi camminati"}, "kind": "kg", "lo": 8, "hi": 10}, "hanging_kr": {"name": {"en": "Hanging knee raise", "it": "Ginocchia al petto alla sbarra"}, "kind": "bw", "lo": 8, "hi": 12}, "farmer": {"name": {"en": "Farmer's carry", "it": "Farmer's walk"}, "kind": "time", "lo": 30, "hi": 40}}, "DESC": {"trazioni": {"en": "<p>Overhand grip slightly wider than shoulders. Start from straight arms with active shoulders (shoulder blades down), pull until your chin clears the bar, lower under control to straight arms.</p><p>Keep every rep clean: no kipping. If you can't do several in a row yet, use short sets or the assisted and negative versions. Rest about 2 min.</p>", "it": "<p>Presa prona poco più larga delle spalle. Parti da braccia tese con spalle attive (scapole giù), sali finché il mento supera la sbarra, scendi controllato fino a braccia tese.</p><p>Ogni ripetizione pulita: niente slanci. Se non riesci ancora a farne diverse di fila, usa serie corte o le versioni assistita e negativa. Recupero circa 2 min.</p>"}, "negative": {"en": "<p>Jump or step up until your chin is over the bar, then lower in 3–5 seconds to straight arms.</p><p>Progress by stretching the descent toward 5 sec before adding reps.</p>", "it": "<p>Sali con un salto o un rialzo fino al mento sopra la sbarra, poi scendi in 3–5 secondi fino a braccia tese.</p><p>Si progredisce allungando la discesa verso i 5 sec prima di aggiungere ripetizioni.</p>"}, "rem_trx": {"en": "<p>Hold the handles, body rigid like a plank, heels on the floor. Pull your chest to your hands, driving the elbows back and squeezing the shoulder blades, then lower under control.</p><p>Harder as you walk your feet closer to the anchor (body more horizontal).</p>", "it": "<p>Impugna le maniglie, corpo rigido come in plank, talloni a terra. Tira il petto verso le mani portando i gomiti indietro e stringendo le scapole, poi scendi controllato.</p><p>Più difficile avvicinando i piedi al punto di aggancio (corpo più orizzontale).</p>"}, "rem_cavo": {"en": "<p>Seated, knees slightly bent, torso tall and still. Pull the handle to your belly button, elbows back, shoulder blades squeezed; return by reaching forward without rounding your back.</p>", "it": "<p>Seduto, ginocchia leggermente piegate, busto dritto e fermo. Tira la maniglia verso l'ombelico portando i gomiti indietro e stringendo le scapole; ritorna allungando le braccia senza incurvare la schiena.</p>"}, "panca_mb": {"en": "<p>Setup: sit with the dumbbells on your thighs, then lie back bringing them with you. Feet down, glutes on the bench, moderate arch (not extreme: your lower back shouldn't strain).</p><p>Lower under control until the elbows are just below the bench, no maximal stretch, and press up. At the end of the set bring the dumbbells back to your thighs before sitting up.</p>", "it": "<p>Setup: siediti con i manubri sulle cosce, poi sdraiati accompagnandoli. Piedi a terra, glutei sulla panca, arco moderato (non esagerato: la lombare non deve tirare).</p><p>Scendi controllato fino a gomiti poco sotto la panca, senza stiramento massimo, e spingi su. A fine serie riporta i manubri sulle cosce prima di sederti.</p>"}, "face_pull": {"en": "<p>Cable at face height, rope attachment. Pull toward your forehead with elbows high and flared; finish by rotating the hands back (fists next to your ears). Shoulders down, torso still.</p>", "it": "<p>Cavo all'altezza del viso, corda. Tira verso la fronte tenendo i gomiti alti e aprendoli di lato; a fine movimento ruota le mani indietro (pugni accanto alle orecchie). Spalle basse, busto fermo.</p>"}, "rdl": {"en": "<p>Standing, one dumbbell per hand in front of your thighs, knees slightly bent and fixed. Push your hips back, sliding the dumbbells down your legs until you feel the hamstrings stretch (around mid-shin), neutral spine. Stand up by driving the hips forward.</p><p>Keep the dumbbells in contact with your thighs all the way down: if they drift away, the load on the lower back goes up. Shins stay vertical: if your knees travel forward, you're squatting, not hinging.</p>", "it": "<p>In piedi, un manubrio per mano davanti alle cosce, ginocchia leggermente piegate e ferme. Spingi le anche indietro scendendo con i manubri lungo le gambe finché senti tirare i femorali (circa metà tibia), schiena neutra. Risali spingendo le anche avanti.</p><p>Manubri a contatto con le cosce per tutta la discesa: se si allontanano dalle gambe aumenta il carico sulla lombare. Gli stinchi restano verticali: se le ginocchia vanno avanti stai facendo uno squat, non uno stacco.</p>"}, "bulgarian": {"en": "<p>Rear foot on a bench, front foot far enough forward that the back knee drops toward the floor with the front shin almost vertical. Lower under control and drive up through the front heel.</p><p>One dumbbell per hand, no support; kg = weight of one dumbbell. Same load on every set. If balance gives out before the leg does (wobbling, losing reps), go lighter: the leg should be the limit.</p>", "it": "<p>Piede posteriore su una panca, anteriore abbastanza avanti da far scendere il ginocchio dietro verso terra con lo stinco anteriore quasi verticale. Scendi controllato e risali spingendo sul tallone anteriore.</p><p>Un manubrio per mano, senza appoggio; kg = peso di un manubrio. Carico fisso su tutte le serie, parti dalla gamba sinistra. Se è l'equilibrio a cedere prima della gamba (oscilli, perdi ripetizioni), scendi di peso: il limite deve essere la gamba.</p>"}, "hip_thrust": {"en": "<p>Shoulder blades on the bench (or the machine pad), feet hip-width. Drive the hips up until your torso is in line with your thighs, pause 1–2 sec squeezing the glutes; don't arch the lower back.</p><p>On a lever machine: log the plates loaded, always the same way.</p>", "it": "<p>Scapole appoggiate alla panca (o alla macchina), piedi a terra larghezza anche. Spingi il bacino in alto finché il busto è in linea con le cosce, pausa 1–2 sec stringendo i glutei; non inarcare la lombare.</p><p>Alla macchina a leva: registra i kg di dischi caricati, sempre allo stesso modo.</p>"}, "polpacci": {"en": "<p>Ball of the foot on a step, heel hanging, a dumbbell in the same-side hand and the other hand on a support. Lower slowly to a full stretch, rise as high as you can on your toes, pause 1 sec.</p>", "it": "<p>Avampiede su un gradino, tallone nel vuoto, un manubrio nella mano dello stesso lato e l'altra mano in appoggio. Scendi lento fino al massimo allungamento, sali sulla punta il più possibile, pausa 1 sec.</p>"}, "plank": {"en": "<p>Forearms on the floor under the shoulders, body in a line from head to heels. Glutes and abs tight, neutral pelvis: no hips up, no sagging lower back.</p>", "it": "<p>Avambracci a terra sotto le spalle, corpo in linea da testa a talloni. Glutei e addome contratti, bacino neutro: né sedere in alto né lombare che cede.</p>"}, "assistite": {"en": "<p>Band looped on the bar under one foot or knee. Same technique as pull-ups, full range from straight arms to chin over the bar. Use a lighter band once you hit the top of the range.</p>", "it": "<p>Elastico agganciato alla sbarra sotto un piede o un ginocchio. Stessa tecnica delle trazioni, range completo da braccia tese a mento sopra la sbarra. Elastico più leggero quando completi il range.</p>"}, "lat": {"en": "<p>Medium/wide grip. Torso leaning back slightly, chest up. Pull the bar to your upper chest, elbows down and back; return under control to straight arms. Don't rock back to pull.</p>", "it": "<p>Presa media/larga. Busto appena inclinato indietro, petto alto. Tira la barra verso la parte alta del petto portando i gomiti giù e indietro; risali controllato fino a braccia tese. Non dondolare all'indietro per tirare.</p>"}, "shoulder": {"en": "<p>Seated with back support, lower back against the pad. Dumbbells at shoulder height, turned about 45° (halfway between palms forward and palms facing), elbows slightly in front of the body rather than flared in line with the shoulders. Press up to almost straight arms, lower in 2–3 sec back to exactly the starting position: vertical forearms, dumbbells at chin height, same rotation. Pause 1 sec at the bottom to realign before the next press.</p><p>Shoulder blades start against the pad, shoulders down; let them move with the arms as you press. If your lower back leaves the pad, the load is too heavy.</p>", "it": "<p>Seduto con schienale, lombare appoggiata. Manubri all'altezza delle spalle, ruotati a circa 45° (a metà tra palmi avanti e palmi che si guardano), gomiti un po' davanti al corpo e non aperti in linea con le spalle. Spingi in alto fino a braccia quasi tese, scendi in 2–3 sec riportando i manubri esattamente alla posizione di partenza: avambracci verticali, manubri all'altezza del mento, stessa rotazione. Pausa 1 sec in basso per riallinearli prima della spinta successiva.</p><p>Le scapole partono appoggiate allo schienale, spalle basse; lasciale muovere con le braccia mentre spingi. Se spingendo la lombare si stacca dallo schienale, il carico è troppo alto.</p>"}, "rem_mb": {"en": "<p>Incline bench, lying face down with your chest supported. Setup: dumbbells at the foot of the bench, lie down, pick them up from there.</p><p>Row both dumbbells, elbows back and shoulder blades squeezed, pause 1 sec, lower under control. At the end of the set put them back on the floor before getting up. Kg = weight of one dumbbell.</p>", "it": "<p>Panca inclinata, sdraiato a pancia in giù con il petto in appoggio. Setup: manubri ai piedi della panca, ti sdrai, li prendi da lì.</p><p>Tira entrambi i manubri portando i gomiti indietro e stringendo le scapole, pausa 1 sec, scendi controllato. A fine serie riappoggiali a terra prima di alzarti. Kg = peso di un manubrio.</p>"}, "alzate": {"en": "<p>Standing, light dumbbells. Raise the arms with elbows softly bent, slightly forward (scapular plane), up to shoulder height, no higher. Shoulders down, no swinging.</p><p>The weaker side sets the reps: same reps on both sides. Progress reps first.</p>", "it": "<p>In piedi, manubri leggeri. Solleva le braccia con gomiti appena piegati, leggermente in avanti (piano della scapola), fino all'altezza delle spalle, non oltre. Spalle basse, niente slanci.</p><p>Il lato più debole decide le ripetizioni: stesse rip. su entrambi i lati. Progressione prima sulle ripetizioni.</p>"}, "goblet": {"en": "<p>Kettlebell held against the sternum, elbows down. Sit down between your legs with a tall torso and heels down, knees tracking over the toes. Stand up driving through the heels.</p><p>Use a heel wedge only if a heel lifts or your torso tips forward.</p>", "it": "<p>Kettlebell attaccato allo sterno, gomiti in basso. Scendi tra le gambe tenendo il busto alto e i talloni a terra, ginocchia che seguono le punte. Risali spingendo sui talloni.</p><p>Usa il rialzo sotto i talloni solo se un tallone si stacca o il busto cade in avanti.</p>"}, "leg_press": {"en": "<p>Feet high on the platform, shoulder-width. Lower only while your pelvis stays against the pad (it must not tuck under), press without locking the knees at the top.</p>", "it": "<p>Piedi alti sulla pedana, larghezza spalle. Scendi finché il bacino resta appoggiato allo schienale (non deve arrotolarsi in basso), spingi senza bloccare le ginocchia in alto.</p>"}, "back_ext": {"en": "<p>Hips on the pad, feet locked. Lower by hinging at the hips with a neutral spine and come up until your body is in line, without hyperextending the lower back.</p><p>If your lower back is sensitive, start with bodyweight.</p>", "it": "<p>Bacino appoggiato al cuscino, piedi bloccati. Scendi piegandoti alle anche con schiena neutra e risali fino ad avere il corpo in linea, senza iperestendere la lombare.</p><p>Se la lombare è sensibile, prima seduta a corpo libero.</p>"}, "suitcase_dl": {"en": "<p>One weight on the floor next to one foot. Bend hips and knees, grab it with a neutral spine and stand up like a deadlift, torso upright without leaning toward the weight. Set it down, from a dead stop, and repeat. All reps on one side, then the other.</p><p>Start light to learn the technique, then add load gradually. If your back rounds from the floor, raise the weight on a low block.</p>", "it": "<p>Un peso a terra accanto a un piede. Piega anche e ginocchia, afferralo con schiena neutra e alzati come in uno stacco, tenendo il busto dritto senza inclinarti verso il peso. Riappoggia a terra, da fermo, e ripeti. Tutte le rip. da un lato, poi l'altro.</p><p>Parti leggero per imparare la tecnica, poi aumenta gradualmente. Se da terra la schiena si arrotonda, appoggia il peso su un rialzo basso.</p>"}, "pallof": {"en": "<p>Band anchored at chest height. Stand side-on to the anchor, far enough that the band is already taut. Hands together at the center of your chest, press your arms straight out in front (not toward the anchor): the farther the hands go, the more the band pulls you sideways.</p><p>Hold 2 sec without letting torso and hips rotate toward the anchor, then return to the chest. All reps on one side, then turn around. Harder by stepping farther away or using a stiffer band.</p>", "it": "<p>Elastico fissato alla spalliera all'altezza del petto. Mettiti di fianco alla spalliera, a una distanza tale che l'elastico sia già in tensione. Mani unite al centro del petto, spingi le braccia tese dritte davanti a te (non verso la spalliera): più le braccia si allontanano, più l'elastico ti tira di lato.</p><p>Tieni 2 sec senza che busto e bacino ruotino verso la spalliera, poi ritorna al petto. Tutte le rip. da un lato, poi giri e fai l'altro. Più difficile allontanandoti dalla spalliera o con un elastico più duro.</p>"}, "step_up": {"en": "<p>Box at a height where your thigh is about parallel to the floor (lower if your ankle limits you). One dumbbell per hand. Whole foot on the box, drive with the top leg until you're standing tall: the bottom leg must not push. Step down under control with the same leg. All reps on one side, then the other; kg = one dumbbell.</p><p>Tall torso, knee tracking over the toes. No load on the spine.</p>", "it": "<p>Box all'altezza a cui la coscia arriva circa parallela al pavimento (più basso se la caviglia limita). Un manubrio per mano. Piede intero sul box, spingi con la gamba sopra fino a stare dritto: la gamba a terra non deve dare la spinta. Scendi controllato con la stessa gamba. Tutte le rip. da un lato, poi l'altro; kg = un manubrio.</p><p>Busto alto, ginocchio che segue la punta del piede. Nessun carico sulla schiena.</p>"}, "leg_ext": {"en": "<p>Alternative to the step-up if you prefer a machine. Set the backrest so your knee lines up with the machine's pivot. Extend to almost straight legs, pause 1 sec, lower under control. Back against the pad.</p>", "it": "<p>Alternativa allo step-up se preferisci una macchina. Schienale regolato in modo che il ginocchio sia allineato al perno della macchina. Estendi fino a gambe quasi tese, pausa 1 sec, scendi controllato. Schiena appoggiata.</p>"}, "dip_hold": {"en": "<p>Step 1 of a dip progression. Jump up on the parallel bars and hold with straight arms: shoulders down away from the ears, chest open, legs still. No lowering.</p><p>Mild discomfort that is gone by the next day = ok; if it gets worse or lingers, stop. Next steps: 2 partial negatives (lower in 3–5 sec only as far as is comfortable), 3 assisted dips, 4 full dips in short sets. Max depth: upper arm parallel to the floor.</p>", "it": "<p>Gradino 1 di una progressione verso i dip. Sali alle parallele e resta a braccia tese: spalle basse lontane dalle orecchie, petto aperto, gambe ferme. Nessuna discesa.</p><p>Un lieve fastidio che passa entro il giorno dopo = ok; se peggiora o dura, fermati. Gradini successivi: 2 negative parziali (scendi in 3–5 sec solo fin dove non dà fastidio), 3 dip assistiti, 4 dip completi a serie corte. Profondità massima: braccio parallelo al pavimento.</p>"}, "dead_bug": {"en": "<p>On your back, arms toward the ceiling, hips and knees at 90°. Lower back pressed into the floor. Slowly reach one arm overhead and the opposite leg forward without the lower back lifting; return and alternate.</p>", "it": "<p>Supino, braccia verso il soffitto, anche e ginocchia a 90°. Lombare a contatto con il pavimento. Allunga un braccio dietro la testa e la gamba opposta in avanti, lentamente, senza che la lombare si stacchi; torna e alterna.</p>"}, "back_squat": {"en": "<p>Bar on the upper back, feet about shoulder-width. Brace, sit down between your hips with knees tracking over the toes, as deep as you can keep a neutral spine and heels down. Drive up through the whole foot.</p>", "it": "<p>Bilanciere sulla parte alta della schiena, piedi circa alla larghezza delle spalle. Addome in tensione, scendi tra le anche con le ginocchia che seguono le punte, fin dove riesci a tenere schiena neutra e talloni giù. Risali spingendo con tutto il piede.</p>"}, "bench_bb": {"en": "<p>Eyes under the bar, shoulder blades squeezed and down, feet planted. Lower the bar to the lower chest with forearms vertical, press back up. Use safety pins or a spotter.</p>", "it": "<p>Occhi sotto il bilanciere, scapole addotte e basse, piedi ben piantati. Porta il bilanciere alla parte bassa del petto con avambracci verticali e spingi su. Usa i fermi di sicurezza o un compagno.</p>"}, "deadlift": {"en": "<p>Bar over mid-foot, shins close. Hinge down, grip just outside the legs, chest up and back flat. Push the floor away and stand tall; lower by pushing the hips back first.</p>", "it": "<p>Bilanciere sopra il centro del piede, stinchi vicini. Scendi piegando le anche, presa appena fuori dalle gambe, petto alto e schiena piatta. Spingi il pavimento e alzati dritto; scendi portando prima le anche indietro.</p>"}, "ohp": {"en": "<p>Standing, bar on the front of the shoulders, glutes and abs tight. Press straight up, moving your head back and then through once the bar passes your face. Don't lean back.</p>", "it": "<p>In piedi, bilanciere sulla parte anteriore delle spalle, glutei e addome contratti. Spingi dritto in alto, spostando la testa indietro e poi in avanti quando il bilanciere supera il viso. Non inclinarti all'indietro.</p>"}, "row_bb": {"en": "<p>Hinge to about 45°, flat back, bar hanging at arm's length. Row it to the lower ribs, squeezing the shoulder blades, then lower under control. If your lower back complains, use a chest-supported row instead.</p>", "it": "<p>Busto inclinato a circa 45°, schiena piatta, bilanciere a braccia tese. Tiralo verso le ultime costole stringendo le scapole, poi scendi controllato. Se la lombare protesta, usa un rematore con petto in appoggio.</p>"}, "incline_db": {"en": "<p>Bench at 30°. Dumbbells over the upper chest, lower them with elbows slightly tucked until you feel a stretch, press up and slightly in.</p>", "it": "<p>Panca a 30°. Manubri sopra la parte alta del petto, scendi con i gomiti leggermente chiusi fino a sentire l'allungamento, spingi in alto e leggermente verso l'interno.</p>"}, "pushup": {"en": "<p>Hands a bit wider than shoulders, body in a straight line, ribs down and glutes tight. Lower the chest close to the floor, push back up.</p><p>Too hard: hands on a bench. Too easy: feet elevated or a weighted vest.</p>", "it": "<p>Mani poco più larghe delle spalle, corpo in linea, costole basse e glutei contratti. Porta il petto vicino al pavimento e risali.</p><p>Troppo difficile: mani su una panca. Troppo facile: piedi rialzati o gilet zavorrato.</p>"}, "dips": {"en": "<p>Start with straight arms, shoulders down. Lower with a slight forward lean until the upper arm is parallel to the floor, press back up. Stop if the front of the shoulder or the sternum hurts.</p>", "it": "<p>Parti a braccia tese, spalle basse. Scendi con il busto leggermente inclinato in avanti fino a braccio parallelo al pavimento e risali. Fermati se fa male la parte anteriore della spalla o lo sterno.</p>"}, "pike_pushup": {"en": "<p>Hips high in an inverted V, hands shoulder-width. Lower the top of your head toward the floor in front of your hands, press back up. Feet on a box makes it harder.</p>", "it": "<p>Anche in alto a V rovesciata, mani alla larghezza delle spalle. Porta la testa verso il pavimento davanti alle mani e risali. Con i piedi su un box diventa più difficile.</p>"}, "chinup": {"en": "<p>Underhand grip, shoulder-width. Same as pull-ups: from straight arms with active shoulders to chin over the bar, lower under control.</p>", "it": "<p>Presa supina alla larghezza delle spalle. Come le trazioni: da braccia tese con spalle attive fino al mento sopra la sbarra, scendi controllato.</p>"}, "curl_db": {"en": "<p>Elbows by your sides, curl the dumbbells up turning the palms up, lower slowly. No swinging.</p>", "it": "<p>Gomiti vicini al busto, porta su i manubri ruotando i palmi verso l'alto, scendi lentamente. Niente slanci.</p>"}, "triceps_pd": {"en": "<p>Cable high, elbows pinned to your sides. Push down until the arms are straight, return until the forearms are about parallel to the floor.</p>", "it": "<p>Cavo in alto, gomiti fermi ai fianchi. Spingi in basso fino a braccia tese, ritorna fino ad avambracci circa paralleli al pavimento.</p>"}, "leg_curl": {"en": "<p>Set the pad just above the heels and the knee in line with the pivot. Curl all the way, pause 1 sec, lower slowly.</p>", "it": "<p>Cuscinetto appena sopra i talloni, ginocchio allineato al perno. Fletti fino in fondo, pausa 1 sec, scendi lentamente.</p>"}, "lunge": {"en": "<p>One dumbbell per hand. Long step, lower the back knee toward the floor with a tall torso, drive through the front heel into the next step. Reps per leg.</p>", "it": "<p>Un manubrio per mano. Passo lungo, scendi con il ginocchio dietro verso il pavimento e il busto alto, spingi sul tallone davanti verso il passo successivo. Ripetizioni per gamba.</p>"}, "hanging_kr": {"en": "<p>Hang from the bar, shoulders active. Bring the knees up by curling the pelvis, not just lifting the legs; lower slowly without swinging.</p>", "it": "<p>Appeso alla sbarra, spalle attive. Porta le ginocchia in alto arrotolando il bacino, non solo sollevando le gambe; scendi lentamente senza dondolare.</p>"}, "farmer": {"en": "<p>Heavy dumbbells or kettlebells at your sides. Walk tall with short steps, shoulders down, no leaning. Log the seconds; the load in the notes.</p>", "it": "<p>Manubri o kettlebell pesanti ai lati. Cammina dritto a passi corti, spalle basse, senza inclinarti. Registra i secondi; il carico nelle note.</p>"}}, "PERSIDE": {"step_up": 1, "bulgarian": 1, "polpacci": 1, "suitcase_dl": 1, "pallof": 1, "dead_bug": 1, "lunge": 1}};
+let RAW = JSON.parse(JSON.stringify(BASE_PROGRAM));
+let LANG = (()=>{ try{ const v=localStorage.getItem("miolog.lang"); if(v==="it"||v==="en") return v; }catch(e){} return (navigator.language||"").toLowerCase().startsWith("it")?"it":"en"; })();
+function L(v){
+  if(Array.isArray(v)) return v.map(L);
+  if(v&&typeof v==="object"){
+    const ks=Object.keys(v);
+    if(ks.length&&ks.every(k=>k==="en"||k==="it")) return v[LANG]??v.en??v.it;
+    const o={}; for(const k of ks) o[k]=L(v[k]); return o;
+  }
+  return v;
+}
+let EX,WK,DESC,WARM,ORDER,PERSIDE;
+function localize(){ EX=L({...LIB.EX,...RAW.EX}); WK=L(RAW.WK); DESC=L(RAW.DESC||{}); WARM=L(RAW.WARM||{common:[],upper:[],lower:[]}); ORDER=RAW.ORDER; PERSIDE=RAW.PERSIDE||{}; }
+localize();
+
+/* UI translations (key = English) */
+const IT = {
+ "Training log":"Registro carichi","Loading…":"Caricamento…","Workout":"Allenamento","History":"Storico","Date":"Data",
+ "Bodyweight (kg)":"Peso corporeo (kg)","optional":"facoltativo","Session notes":"Note della seduta",
+ "How it felt, aches, technique…":"Sensazioni, fastidi, tecnica…","Empty sets are not saved.":"Le serie vuote non vengono salvate.",
+ "Save session":"Salva seduta","Exercise":"Esercizio","Sessions":"Sedute","Data & program":"Dati e scheda",
+ "Export data":"Esporta dati","Import file (data or program)":"Importa file (dati o scheda)","Clear program":"Svuota scheda",
+ "MioLog never connects to any server: sessions and program stay on this device. They only leave when you export them.":"MioLog non si collega a nessun server: sedute e scheda restano solo su questo dispositivo. Escono solo quando le esporti tu.",
+ "How to do it":"Come si esegue","All sessions":"Per tutte","Warm-up":"Riscaldamento","hide":"nascondi","show":"mostra",
+ "Default program":"Scheda predefinita","Imported program":"Scheda importata","reps":"rip",
+ "First time: pick a load you can do for {0} {1} with 2 in the tank":"Primo giro: carico con cui chiudi {0} {1} con 2 in canna",
+ "First time: log what you can do cleanly":"Primo giro: segna cosa riesci a fare pulito",
+ "Sets of 2, always clean. Max-reps test after 3–4 weeks":"Serie da 2 sempre pulite. Test del massimo dopo 3–4 settimane",
+ "Range done: hold longer or make it harder":"Range completato: allunga il tempo o rendilo più difficile",
+ "Range done: make it harder":"Range completato: aumenta la difficoltà",
+ "Aim for +5 sec":"Punta a +5 sec","Aim for +1 rep":"Punta a +1 rip",
+ "Top of the range but to failure: stay at {0} kg until you finish with 1–2 in the tank":"Top del range ma a cedimento: resta a {0} kg finché chiudi con 1–2 in canna",
+ "Add the smallest jump (above {0} kg) and restart from {1} reps":"Aumenta il carico del minimo (oltre {0} kg) e riparti da {1} rip",
+ "Reps dropping: stay at {0} kg or go a bit lighter":"Ripetizioni in calo: resta a {0} kg o scendi un po'",
+ "Stay at {0} kg, aim for +1 rep":"Resta a {0} kg, punta a +1 rip",
+ "Next":"Prossima","Editing the session of {0}.":"Stai modificando la seduta del {0}.","Cancel edit":"Annulla modifica",
+ "Last ({0}):":"Ultima ({0}):","No previous data":"Nessun dato precedente","set":"serie","/side":"/lato","Cable":"Cavo",
+ "Reps left in the tank after the last set, even ugly ones (0 = couldn't do another)":"Ripetizioni ancora possibili a fine ultima serie, anche non pulite (0 = non ne usciva un'altra)",
+ "Enter at least one set with reps.":"Inserisci almeno una serie con le ripetizioni.","{0} on {1} saved.":"{0} del {1} salvata.",
+ "Save failed: browser storage is unavailable. Export your data so you don't lose it.":"Salvataggio non riuscito: la memoria del browser non è disponibile. Esporta i dati per non perderli.",
+ "kg bodyweight":"kg corporei","Edit":"Modifica","Delete":"Elimina","Confirm delete":"Conferma eliminazione",
+ "No sessions yet. Fill in a workout and tap Save session: it will show up here.":"Nessuna seduta salvata. Compila l'allenamento e premi Salva seduta: comparirà qui.",
+ "No data yet for {0}.":"Ancora nessun dato per {0}.","{0} trend":"Andamento {0}",
+ "Top load per session (kg)":"Carico massimo per seduta (kg)","Best time per session (sec)":"Tempo migliore per seduta (sec)","Best reps per session":"Ripetizioni migliori per seduta",
+ "Sets":"Serie","never":"mai",
+ "{0} sessions on this device":"{0} sedute su questo dispositivo","1 session on this device":"1 seduta su questo dispositivo",
+ " · time for a backup (History → Export)":" · fai un backup (Storico → Esporta)",
+ "Last exported backup: {0}. Your data lives only in this browser: export now and then and keep the file.":"Ultimo backup esportato: {0}. I dati vivono solo in questo browser: esporta ogni tanto e conserva il file.",
+ "Current program: {0}":"Scheda in uso: {0}","Export cancelled.":"Esportazione annullata.",
+ "File shared. Upload it to your chat with Claude for the analysis.":"File condiviso. Caricalo nella chat con Claude per l'analisi.",
+ "File downloaded. Upload it to your chat with Claude for the analysis.":"File scaricato. Caricalo nella chat con Claude per l'analisi.",
+ "Can't read the file: it isn't valid JSON.":"File non leggibile: non è un JSON valido.",
+ "Invalid program: incomplete structure. Nothing changed.":"Scheda non valida: struttura incompleta. Nessuna modifica.",
+ "Program \"{0}\" loaded.":"Scheda \"{0}\" caricata.","Couldn't save the imported sessions.":"Impossibile salvare le sedute importate.",
+ "Sessions: {0} added, {1} updated, {2} already there.":"Sedute: {0} aggiunte, {1} aggiornate, {2} già presenti.",
+ "The file contains neither sessions nor a recognizable program.":"Il file non contiene né sedute né una scheda riconoscibile.",
+ "Confirm clear":"Conferma","Program cleared. Your sessions were not touched.":"Scheda svuotata. Le sedute non sono state toccate.",
+ "Language":"Lingua","Program":"Scheda","Program name":"Nome della scheda","Start from a template":"Parti da un modello",
+ "New empty program":"Nuova scheda vuota","My program":"La mia scheda","No exercises yet: build your program in the Program tab.":"Ancora nessun esercizio: crea la tua scheda nella sezione Scheda.","MioLog is a logging tool: it does not provide training or medical advice. Choose exercises and loads under your own responsibility, ideally with a qualified professional.":"MioLog è uno strumento per registrare: non fornisce consigli di allenamento né medici. Esercizi e carichi li scegli sotto la tua responsabilità, meglio se con un professionista qualificato.","New program created. Add your exercises.":"Nuova scheda creata. Aggiungi i tuoi esercizi.","Confirm":"Conferma","+ Add workout":"+ Aggiungi allenamento","+ Add exercise":"+ Aggiungi esercizio",
+ "Changes are saved automatically on this device. Your sessions are never touched. Rep ranges apply to the exercise everywhere it appears.":"Le modifiche si salvano da sole su questo dispositivo. Le sedute non vengono mai toccate. Il range di ripetizioni vale per l'esercizio ovunque compaia.",
+ "Workout name":"Nome allenamento","Subtitle":"Sottotitolo","Warm-up":"Riscaldamento","None":"Nessuno","Full body":"Total body",
+ "sets":"serie","Move up":"Su","Move down":"Giù","Remove":"Rimuovi","Delete workout":"Elimina allenamento",
+ "Search exercises…":"Cerca esercizi…","Close":"Chiudi","Or create your own":"Oppure creane uno tuo","Name":"Nome","Type":"Tipo",
+ "Weight (kg)":"Peso (kg)","Bodyweight (reps)":"Corpo libero (rip)","Time (sec)":"Tempo (sec)","Create":"Crea",
+ "Template \"{0}\" applied. Your sessions were not touched.":"Modello \"{0}\" applicato. Le sedute non sono state toccate.",
+ "This replaces the current program (sessions stay). Tap again to confirm.":"Sostituisce la scheda attuale (le sedute restano). Tocca di nuovo per confermare.",
+ "No exercises yet.":"Ancora nessun esercizio.","Workout":"Allenamento","At least one workout is needed.":"Serve almeno un allenamento.","per side":"per lato","No results":"Nessun risultato"
+};
+function tr(k,...a){ let s=(LANG==="it"&&IT[k]!=null)?IT[k]:k; a.forEach((v,i)=>{ s=s.split("{"+i+"}").join(v); }); return s; }
+function applyStatic(){
+  document.documentElement.lang=LANG;
+  const txt=(id,k)=>{ const e=$(id); if(e) e.textContent=tr(k); };
+  const lab=(id,k)=>{ const e=$(id); if(e&&e.parentNode.firstChild.nodeType===3) e.parentNode.firstChild.nodeValue=tr(k); };
+  $("brand-sub").textContent=tr("Training log");
+  txt("tab-log","Workout"); txt("tab-hist","History"); txt("tab-prog","Program");
+  lab("p-name","Program name"); txt("p-new","New empty program"); txt("p-addwk","+ Add workout"); txt("p-help","Changes are saved automatically on this device. Your sessions are never touched. Rep ranges apply to the exercise everywhere it appears.");
+  lab("f-date","Date"); lab("f-bw","Bodyweight (kg)"); lab("f-note","Session notes"); lab("f-ex","Exercise");
+  $("f-bw").placeholder=tr("optional"); $("f-note").placeholder=tr("How it felt, aches, technique…");
+  if(!$("btn-save").disabled) txt("btn-save","Save session");
+  txt("savemsg","Empty sets are not saved.");
+  txt("h-sessions","Sessions"); txt("h-data","Data & program");
+  txt("btn-export","Export data"); txt("btn-import","Import file (data or program)"); if(!resetArm) txt("btn-reset-prog","Clear program");
+  txt("disclaimer","MioLog is a logging tool: it does not provide training or medical advice. Choose exercises and loads under your own responsibility, ideally with a qualified professional.");
+  txt("privacy","MioLog never connects to any server: sessions and program stay on this device. They only leave when you export them.");
+  $("btn-lang").textContent=LANG==="it"?"EN":"IT"; $("btn-lang").setAttribute("aria-label",tr("Language"));
+}
+const openInfo = new Set(); let warmOpen = true;
+function infoBtn(key){ return `<button type="button" class="info" data-info="${key}" aria-expanded="${openInfo.has(key)}" aria-label="${tr("How to do it")}">i</button>`; }
+function infoBox(key,html){ return openInfo.has(key)&&html?`<div class="desc">${html}</div>`:""; }
+function warmLabel(p){ return p==="upper"?"Upper":p==="lower"?"Lower":p==="full"?tr("Full body"):p; }
+function warmHTML(){
+  const wk=WK[form.wk]||{}; const part=wk.warm||(form.wk[0]==="U"?"upper":"lower");
+  if(part==="none") return "";
+  const done=form.warm||{};
+  const extra=WARM[part]||[];
+  const list=[[tr("All sessions"),WARM.common||[]]].concat(extra.length?[[warmLabel(part),extra]]:[]);
+  const all=[...(WARM.common||[]),...extra], n=all.filter(w=>done[w.id]).length;
+  const body=list.map(([t,items])=>`<div class="wsub">${t}</div>`+items.map(w=>{
+    const k="w:"+w.id;
+    return `<div class="witem ${done[w.id]?"done":""}"><div class="wrow"><input type="checkbox" id="chk-${w.id}" data-warm="${w.id}" ${done[w.id]?"checked":""}><label for="chk-${w.id}">${w.name}</label><span class="dose">${w.dose}</span>${infoBtn(k)}</div>${infoBox(k,w.d)}</div>`;
+  }).join("")).join("");
+  return `<section class="warm"><button type="button" class="warm-h" id="warm-toggle" aria-expanded="${warmOpen}"><h3>${tr("Warm-up")}</h3><span>${n}/${all.length} · ${warmOpen?tr("hide"):tr("show")}</span></button>${warmOpen?body:""}</section>`;
+}
+let resetArm=false;
+const DEFAULT_PROGRAM = BASE_PROGRAM;
+const DEFAULT_META = {name:{en:"My program",it:"La mia scheda"}, updated:""};
+let PROGRAM_META = {...DEFAULT_META};
+function applyProgram(p){ RAW=p; localize(); }
+function validProgram(p){ return p&&p.EX&&p.WK&&Array.isArray(p.ORDER)&&p.ORDER.length&&p.ORDER.every(k=>p.WK[k]&&Array.isArray(p.WK[k].items)&&p.WK[k].items.every(it=>p.EX[it[0]]&&(!it[2]||p.EX[it[2]]))); }
+try{ const sp=JSON.parse(localStorage.getItem("registro.program")||"null"); if(validProgram(sp)){ applyProgram(sp); PROGRAM_META={name:sp.name||tr("Imported program"),updated:sp.updated||""}; } }catch(e){}
+const SKEY="registro.sessions";
+function loadSessions(){ try{ const a=JSON.parse(localStorage.getItem(SKEY)||"[]"); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+function persist(){ try{ localStorage.setItem(SKEY,JSON.stringify(sessions)); return true; }catch(e){ return false; } }
+
+const $ = id => document.getElementById(id);
+const today = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+const fmtDate = s => { const [y,m,d]=s.split("-"); return `${d}/${m}/${y.slice(2)}`; };
+const num = v => { if(v===""||v==null) return null; const n=parseFloat(String(v).replace(",",".")); return isFinite(n)?n:null; };
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+let db=null, sessions=[], editingId=null, autoPicked=false;
+let form = blankForm(nextWorkout());
+
+function blankForm(wk){ return {wk, date:today(), bw:"", note:"", vals:{}, rir:{}, alt:{}, warm:{}}; }
+function pick(k,item){ const a=(form.alt||{})[k]; return a&&(a===item[0]||a===item[2])?a:item[0]; }
+function nextWorkout(){
+  if(!sessions.length) return ORDER[0];
+  const last=[...sessions].sort((a,b)=>(b.date+b.savedAt).localeCompare(a.date+a.savedAt))[0];
+  const i=ORDER.indexOf(last.workout); return ORDER[(i+1)%ORDER.length];
+}
+
+/* draft: per-device convenience only */
+function saveDraft(){ try{ localStorage.setItem("draft",JSON.stringify({form,editingId})); }catch(e){} }
+function loadDraft(){ try{ const d=JSON.parse(localStorage.getItem("draft")||"null"); if(d&&d.form&&WK[d.form.wk]){ form=d.form; editingId=d.editingId||null; return true;} }catch(e){} return false; }
+function clearDraft(){ try{ localStorage.removeItem("draft"); }catch(e){} }
+
+function lastFor(exId, beforeDate){
+  const list=sessions.filter(s=>s.entries&&s.entries[exId]&&s.id!==editingId&&(!beforeDate||s.date<=beforeDate))
+    .sort((a,b)=>(b.date+b.savedAt).localeCompare(a.date+a.savedAt));
+  return list[0]?{s:list[0],e:list[0].entries[exId]}:null;
+}
+
+function unitOf(ex){ return ex.kind==="time"?"sec":tr("reps"); }
+function setsText(ex,e){
+  return e.sets.map(st=> ex.kind==="kg" ? `${st.kg??0}×${st.reps}` : `${st.reps}${ex.kind==="time"?"″":""}`).join(" · ");
+}
+function suggest(id,last){
+  const ex=EX[id];
+  if(!last) return {c:"new",t: ex.kind==="kg" ? tr("First time: pick a load you can do for {0} {1} with 2 in the tank",ex.hi,unitOf(ex)) : tr("First time: log what you can do cleanly")};
+  const e=last.e, reps=e.sets.map(s=>s.reps), rir=e.rir;
+  if(ex.tip) return {c:"hold",t:ex.tip};
+  const allTop=reps.every(r=>r>=ex.hi);
+  const drop=reps.length>1&&(reps[0]-reps[reps.length-1]>=2||reps.some(r=>r<ex.lo));
+  if(ex.kind!=="kg"){
+    if(allTop) return {c:"up",t: ex.up?ex.up: ex.kind==="time"?tr("Range done: hold longer or make it harder"):tr("Range done: make it harder")};
+    return {c:"hold",t:(ex.kind==="time"?tr("Aim for +5 sec"):tr("Aim for +1 rep"))};
+  }
+  const kgs=e.sets.map(s=>s.kg??0), kg=Math.max(...kgs);
+  if(allTop&&rir===0) return {c:"hold",t:tr("Top of the range but to failure: stay at {0} kg until you finish with 1–2 in the tank",kg)};
+  if(allTop) return {c:"up",t:tr("Add the smallest jump (above {0} kg) and restart from {1} reps",kg,ex.lo)};
+  if(drop) return {c:"down",t:tr("Reps dropping: stay at {0} kg or go a bit lighter",kg)};
+  return {c:"hold",t:tr("Stay at {0} kg, aim for +1 rep",kg)};
+}
+
+function renderPicker(){
+  const nx=nextWorkout();
+  $("picker").innerHTML=ORDER.map(k=>`<button type="button" data-wk="${k}" aria-pressed="${form.wk===k}">
+    <b>${WK[k].name}</b><span class="${k===nx?"next":""}">${k===nx?tr("Next"):WK[k].sub}</span></button>`).join("");
+}
+function v(id,i,f){ return (form.vals[id]&&form.vals[id][i]&&form.vals[id][i][f])??""; }
+function renderForm(){
+  renderPicker();
+  $("f-date").value=form.date; $("f-bw").value=form.bw; $("f-note").value=form.note;
+  $("editing").hidden=!editingId;
+  if(editingId) $("editing").innerHTML=`${tr("Editing the session of {0}.",fmtDate(form.date))} <button class="actions" style="all:unset;color:var(--accent);cursor:pointer;font-weight:600" id="btn-cancel-edit">${tr("Cancel edit")}</button>`;
+  $("exlist").innerHTML=(WK[form.wk].items.length?"":`<div class="empty">${tr("No exercises yet: build your program in the Program tab.")}</div>`)+warmHTML()+WK[form.wk].items.map((item,k)=>{
+    const n=item[1], id=pick(k,item), ex=EX[id], last=lastFor(id,form.date), sg=suggest(id,last);
+    const lastTxt=last?`${tr("Last ({0}):",fmtDate(last.s.date))} <span class="num">${esc(setsText(ex,last.e))}</span>${last.e.rir!=null?` · RIR ${last.e.rir}`:""}`:tr("No previous data");
+    const lastKg=last&&ex.kind==="kg"?Math.max(...last.e.sets.map(s=>s.kg??0)):"";
+    let rows="";
+    for(let i=0;i<n;i++){
+      rows+=`<span class="sn">${i+1}</span>`;
+      if(ex.kind==="kg") rows+=`<input class="n" id="in-${id}-${i}-kg" data-ex="${id}" data-i="${i}" data-f="kg" inputmode="decimal" placeholder="${lastKg!==""?lastKg:"kg"}" value="${esc(v(id,i,"kg"))}" aria-label="${ex.name} ${tr("set")} ${i+1} kg">`;
+      rows+=`<input class="n" id="in-${id}-${i}-reps" data-ex="${id}" data-i="${i}" data-f="reps" inputmode="numeric" placeholder="${ex.lo===ex.hi?ex.lo:ex.lo+"–"+ex.hi}" value="${esc(v(id,i,"reps"))}" aria-label="${ex.name} ${tr("set")} ${i+1} ${unitOf(ex)}">`;
+    }
+    const r=form.rir[id];
+    return `<article class="ex">
+      <div class="ex-h"><h3>${ex.name}${infoBtn("e:"+id)}</h3><span class="target">${n} × ${ex.lo===ex.hi?ex.lo:ex.lo+"–"+ex.hi}${ex.kind==="time"?" sec":""}${PERSIDE[id]?tr("/side"):""}</span></div>
+      ${infoBox("e:"+id,DESC[id])}
+      ${item[2]?`<div class="rir opts" style="gap:4px">${[item[0],item[2]].map(a=>`<button type="button" data-alt="${k}" data-id="${a}" aria-pressed="${a===id}">${a==="rem_trx"?"TRX":a==="rem_cavo"?tr("Cable"):EX[a].name}</button>`).join("")}</div>`:""}
+      <div class="last">${lastTxt}</div>
+      <div><span class="pill ${sg.c}">${esc(sg.t)}</span></div>
+      <div class="sets ${ex.kind==="kg"?"":"one"}">
+        <span></span>${ex.kind==="kg"?'<span class="hd">kg</span>':""}<span class="hd">${unitOf(ex)}</span>
+        ${rows}
+      </div>
+      <div class="rir"><span>${tr("Reps left in the tank after the last set, even ugly ones (0 = couldn't do another)")}</span><div class="opts">
+        ${[0,1,2,3].map(x=>`<button type="button" data-rir="${id}" data-v="${x}" aria-pressed="${r===x}">${x===3?"3+":x}</button>`).join("")}
+      </div></div>
+    </article>`;
+  }).join("");
+}
+
+function collect(){
+  const entries={};
+  for(const [k,item] of WK[form.wk].items.entries()){
+    const id=pick(k,item), ex=EX[id], rows=form.vals[id]||{}, sets=[];
+    for(const i of Object.keys(rows).sort((a,b)=>a-b)){
+      const reps=num(rows[i].reps); if(reps==null) continue;
+      const st={reps}; if(ex.kind==="kg"){ const k=num(rows[i].kg); st.kg=k==null?0:k; }
+      sets.push(st);
+    }
+    if(sets.length) entries[id]={sets, rir: form.rir[id]??null};
+  }
+  return entries;
+}
+
+async function save(){
+  const entries=collect();
+  if(!Object.keys(entries).length){ $("savemsg").textContent=tr("Enter at least one set with reps."); return; }
+  const id=`${form.date}_${form.wk}`;
+  const body={date:form.date, workout:form.wk, bodyweight:num(form.bw), note:form.note.trim(), entries, savedAt:new Date().toISOString()};
+  $("btn-save").disabled=true;
+  try{
+    const prev=sessions;
+    sessions=sessions.filter(x=>x.id!==id&&x.id!==editingId).concat([{id,...body}]);
+    if(!persist()){ sessions=prev; throw new Error("storage"); }
+    editingId=null; clearDraft(); updateStatus(); renderHist();
+    const saved=tr("{0} on {1} saved.",WK[body.workout].name,fmtDate(body.date));
+    form=blankForm(nextWorkoutAfter(body.workout)); renderForm();
+    $("savemsg").textContent=saved;
+  }catch(e){
+    $("savemsg").textContent = tr("Save failed: browser storage is unavailable. Export your data so you don't lose it.");
+  }finally{ $("btn-save").disabled=false; }
+}
+function nextWorkoutAfter(wk){ return ORDER[(ORDER.indexOf(wk)+1)%ORDER.length]; }
+
+/* history */
+function renderHist(){
+  const sel=$("f-ex"); const cur=sel.value||"goblet";
+  const used=Object.keys(EX).filter(id=>sessions.some(s=>s.entries&&s.entries[id]));
+  const ids=used.length?used:Object.keys(EX);
+  sel.innerHTML=ids.map(id=>`<option value="${id}">${EX[id].name}</option>`).join("");
+  sel.value=ids.includes(cur)?cur:ids[0];
+  renderExHist(sel.value);
+  const list=[...sessions].sort((a,b)=>(b.date+b.savedAt).localeCompare(a.date+a.savedAt));
+  $("sesslist").innerHTML=list.length?list.map(s=>`<div class="hist-sess">
+    <div class="row"><strong>${WK[s.workout]?.name||s.workout}</strong><span class="d">${fmtDate(s.date)}${s.bodyweight?` · ${s.bodyweight} ${tr("kg bodyweight")}`:""}</span></div>
+    <ul>${Object.entries(s.entries||{}).map(([id,e])=>EX[id]?`<li><span>${EX[id].name}</span><span class="v">${esc(setsText(EX[id],e))}${e.rir!=null?` · RIR ${e.rir}`:""}</span></li>`:"").join("")}</ul>
+    ${s.note?`<div class="note">${esc(s.note)}</div>`:""}
+    <div class="actions"><button type="button" data-edit="${s.id}">${tr("Edit")}</button><button type="button" data-del="${s.id}">${tr("Delete")}</button></div>
+  </div>`).join(""):`<div class="empty">${tr("No sessions yet. Fill in a workout and tap Save session: it will show up here.")}</div>`;
+}
+function renderExHist(id){
+  const ex=EX[id];
+  const rows=sessions.filter(s=>s.entries&&s.entries[id]).sort((a,b)=>a.date.localeCompare(b.date));
+  if(!rows.length){ $("exhist").innerHTML=`<div class="empty">${tr("No data yet for {0}.",ex.name)}</div>`; return; }
+  const metric=s=>{ const e=s.entries[id]; return ex.kind==="kg"?Math.max(...e.sets.map(x=>x.kg??0)):Math.max(...e.sets.map(x=>x.reps)); };
+  const vals=rows.map(metric);
+  let chart="";
+  if(rows.length>=2){
+    const W=320,H=130,pl=34,pr=10,pt=12,pb=24;
+    let mn=Math.min(...vals), mx=Math.max(...vals); if(mn===mx){mn-=1;mx+=1;}
+    const x=i=>pl+(W-pl-pr)*(i/(rows.length-1)), y=val=>pt+(H-pt-pb)*(1-(val-mn)/(mx-mn));
+    const pts=vals.map((val,i)=>`${x(i).toFixed(1)},${y(val).toFixed(1)}`).join(" ");
+    const area=`${x(0)},${H-pb} ${pts} ${x(rows.length-1)},${H-pb}`;
+    chart=`<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${tr("{0} trend",ex.name)}">
+      <line x1="${pl}" x2="${W-pr}" y1="${y(mx)}" y2="${y(mx)}" stroke="var(--line)"/>
+      <line x1="${pl}" x2="${W-pr}" y1="${y(mn)}" y2="${y(mn)}" stroke="var(--line)"/>
+      <text x="${pl-6}" y="${y(mx)+3}" text-anchor="end">${+mx.toFixed(1)}</text>
+      <text x="${pl-6}" y="${y(mn)+3}" text-anchor="end">${+mn.toFixed(1)}</text>
+      <polygon points="${area}" fill="var(--accent-soft)"/>
+      <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+      <circle cx="${x(rows.length-1)}" cy="${y(vals[vals.length-1])}" r="4" fill="var(--accent)"/>
+      <text x="${pl}" y="${H-6}">${fmtDate(rows[0].date)}</text>
+      <text x="${W-pr}" y="${H-6}" text-anchor="end">${fmtDate(rows[rows.length-1].date)}</text>
+    </svg><div class="note">${ex.kind==="kg"?tr("Top load per session (kg)"):ex.kind==="time"?tr("Best time per session (sec)"):tr("Best reps per session")}</div></div>`;
+  }
+  const table=`<div class="tablewrap"><table><thead><tr><th>${tr("Date")}</th><th>${tr("Sets")}</th><th>RIR</th></tr></thead><tbody>
+    ${[...rows].reverse().map(s=>`<tr><td class="num">${fmtDate(s.date)}</td><td class="num">${esc(setsText(ex,s.entries[id]))}</td><td class="num">${s.entries[id].rir??"–"}</td></tr>`).join("")}
+  </tbody></table></div>`;
+  $("exhist").innerHTML=chart+table;
+}
+
+/* events */
+document.addEventListener("input",ev=>{
+  const t=ev.target;
+  if(t.dataset&&t.dataset.ex){ const {ex,i,f}=t.dataset; form.vals[ex]=form.vals[ex]||{}; form.vals[ex][i]=form.vals[ex][i]||{}; form.vals[ex][i][f]=t.value; saveDraft(); }
+  else if(t.id==="f-bw"){ form.bw=t.value; saveDraft(); }
+  else if(t.id==="f-note"){ form.note=t.value; saveDraft(); }
+});
+document.addEventListener("change",ev=>{ const t=ev.target; if(t.dataset&&t.dataset.warm){ form.warm=form.warm||{}; form.warm[t.dataset.warm]=t.checked; saveDraft(); renderForm(); } });
+$("f-date").addEventListener("change",e=>{ form.date=e.target.value||today(); saveDraft(); renderForm(); });
+$("f-ex").addEventListener("change",e=>renderExHist(e.target.value));
+$("btn-save").addEventListener("click",save);
+let delArm=null;
+document.addEventListener("click",ev=>{
+  const b=ev.target.closest("button"); if(!b) return;
+  if(b.dataset.info){ const k=b.dataset.info; openInfo.has(k)?openInfo.delete(k):openInfo.add(k); renderForm(); return; }
+  if(b.id==="warm-toggle"){ warmOpen=!warmOpen; renderForm(); return; }
+  if(b.dataset.wk){ form.wk=b.dataset.wk; autoPicked=true; saveDraft(); renderForm(); }
+  else if(b.dataset.alt!=null&&b.dataset.id){ form.alt=form.alt||{}; form.alt[b.dataset.alt]=b.dataset.id; saveDraft(); renderForm(); }
+  else if(b.dataset.rir){ const id=b.dataset.rir, x=+b.dataset.v; form.rir[id]=form.rir[id]===x?undefined:x; saveDraft(); renderForm(); }
+  else if(b.id==="btn-cancel-edit"){ editingId=null; clearDraft(); form=blankForm(nextWorkout()); renderForm(); }
+  else if(b.dataset.edit){
+    const s=sessions.find(x=>x.id===b.dataset.edit); if(!s) return;
+    editingId=s.id; form={wk:s.workout,date:s.date,bw:s.bodyweight??"",note:s.note||"",vals:{},rir:{},alt:{}};
+    (WK[s.workout]?.items||[]).forEach((it,k)=>{ if(it[2]&&s.entries&&s.entries[it[2]]) form.alt[k]=it[2]; });
+    for(const [id,e] of Object.entries(s.entries||{})){ form.vals[id]={}; e.sets.forEach((st,i)=>form.vals[id][i]={reps:String(st.reps),kg:st.kg!=null?String(st.kg):""}); if(e.rir!=null) form.rir[id]=e.rir; }
+    saveDraft(); renderForm(); showTab("log"); window.scrollTo({top:0});
+  }
+  else if(b.dataset.del){
+    if(delArm!==b){ if(delArm){delArm.classList.remove("confirm");delArm.textContent=tr("Delete");} delArm=b; b.classList.add("confirm"); b.textContent=tr("Confirm delete"); setTimeout(()=>{ if(delArm===b){b.classList.remove("confirm");b.textContent=tr("Delete");delArm=null;} },4000); return; }
+    delArm=null; sessions=sessions.filter(x=>x.id!==b.dataset.del); persist(); updateStatus(); renderForm(); renderHist();
+  }
+});
+function showTab(t){
+  for(const x of ["log","hist","prog"]){ $("tab-"+x).setAttribute("aria-selected",t===x); $("view-"+x).hidden=t!==x; }
+  if(t==="hist") renderHist(); if(t==="prog") renderEditor(); if(t==="log") renderForm();
+}
+$("tab-log").addEventListener("click",()=>showTab("log"));
+$("tab-hist").addEventListener("click",()=>showTab("hist"));
+$("tab-prog").addEventListener("click",()=>showTab("prog"));
+
+/* data: export / import */
+function fmtStamp(iso){ if(!iso) return tr("never"); const d=new Date(iso); const loc=LANG==="it"?"it-IT":"en-GB"; return d.toLocaleDateString(loc)+" "+d.toLocaleTimeString(loc,{hour:"2-digit",minute:"2-digit"}); }
+function lastBackup(){ try{ return localStorage.getItem("registro.lastBackup"); }catch(e){ return null; } }
+function updateStatus(){
+  const lb=lastBackup(), days=lb?(Date.now()-new Date(lb))/864e5:Infinity;
+  const latest=sessions.reduce((m,x)=>x.savedAt>m?x.savedAt:m,"");
+  const stale=sessions.length&&(!lb||latest>lb)&&days>7;
+  $("status").textContent=(sessions.length===1?tr("1 session on this device"):tr("{0} sessions on this device",sessions.length))+(stale?tr(" · time for a backup (History → Export)"):"");
+  $("backupinfo").textContent=tr("Last exported backup: {0}. Your data lives only in this browser: export now and then and keep the file.",fmtStamp(lb));
+  $("programinfo").textContent=`${tr("Current program: {0}",L(PROGRAM_META.name))}${PROGRAM_META.updated?" ("+PROGRAM_META.updated+")":""}.`;
+}
+async function download(name,obj){
+  const text=JSON.stringify(obj,null,2);
+  try{
+    const file=new File([text],name,{type:"application/json"});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:name}); return "share"; }
+  }catch(e){ if(e&&e.name==="AbortError") return "abort"; }
+  const blob=new Blob([text],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+  return "download";
+}
+$("btn-export").addEventListener("click",async()=>{
+  const now=new Date().toISOString();
+  const how=await download(`miolog-${today()}.json`,{app:"registro-carichi",type:"dati",version:1,exportedAt:now,
+    sessions:[...sessions].sort((a,b)=>a.date.localeCompare(b.date)),
+    program:{name:PROGRAM_META.name,updated:PROGRAM_META.updated,...RAW}});
+  if(how==="abort"){ $("datamsg").textContent=tr("Export cancelled."); return; }
+  try{ localStorage.setItem("registro.lastBackup",now); }catch(e){}
+  $("datamsg").textContent=how==="share"?tr("File shared. Upload it to your chat with Claude for the analysis."):tr("File downloaded. Upload it to your chat with Claude for the analysis.");
+  updateStatus();
+});
+$("btn-import").addEventListener("click",()=>$("file-import").click());
+$("file-import").addEventListener("change",async ev=>{
+  const f=ev.target.files[0]; ev.target.value=""; if(!f) return;
+  let obj; try{ obj=JSON.parse(await f.text()); }catch(e){ $("datamsg").textContent=tr("Can't read the file: it isn't valid JSON."); return; }
+  const msgs=[];
+  const prog = obj&&(obj.type==="scheda"||obj.type==="program") ? obj : null;
+  if(prog){
+    if(!validProgram(prog)){ $("datamsg").textContent=tr("Invalid program: incomplete structure. Nothing changed."); return; }
+    const p={name:prog.name||tr("Imported program"),updated:prog.updated||"",EX:prog.EX,WK:prog.WK,ORDER:prog.ORDER,PERSIDE:prog.PERSIDE||{},DESC:prog.DESC||{},WARM:prog.WARM||{common:[],upper:[],lower:[]}};
+    try{ localStorage.setItem("registro.program",JSON.stringify(p)); }catch(e){}
+    applyProgram(p); PROGRAM_META={name:p.name,updated:p.updated};
+    if(!WK[form.wk]) form=blankForm(nextWorkout());
+    msgs.push(tr("Program \"{0}\" loaded.",L(p.name)));
+    if(prog.notes) msgs.push(String(L(prog.notes)));
+  }
+  if(obj&&Array.isArray(obj.sessions)){
+    const ok=obj.sessions.filter(x=>x&&x.id&&x.date&&x.workout&&x.entries);
+    let added=0, updated=0;
+    const byId=new Map(sessions.map(x=>[x.id,x]));
+    for(const x of ok){ const cur=byId.get(x.id); if(!cur){ byId.set(x.id,x); added++; } else if((x.savedAt||"")>(cur.savedAt||"")){ byId.set(x.id,x); updated++; } }
+    const prev=sessions; sessions=[...byId.values()];
+    if(!persist()){ sessions=prev; msgs.push(tr("Couldn't save the imported sessions.")); }
+    else msgs.push(tr("Sessions: {0} added, {1} updated, {2} already there.",added,updated,ok.length-added-updated));
+  }
+  if(!msgs.length) msgs.push(tr("The file contains neither sessions nor a recognizable program."));
+  $("datamsg").textContent=msgs.join(" ");
+  if(!autoPicked&&!editingId) form.wk=nextWorkout();
+  updateStatus(); renderForm(); renderHist();
+});
+$("btn-reset-prog").addEventListener("click",e=>{
+  const b=e.currentTarget;
+  if(!resetArm){ resetArm=true; b.classList.add("confirm"); b.textContent=tr("Confirm clear"); setTimeout(()=>{ resetArm=false; b.classList.remove("confirm"); b.textContent=tr("Clear program"); },4000); return; }
+  resetArm=false; b.classList.remove("confirm"); b.textContent=tr("Clear program");
+  try{ localStorage.removeItem("registro.program"); }catch(e){}
+  applyProgram(JSON.parse(JSON.stringify(DEFAULT_PROGRAM))); PROGRAM_META={...DEFAULT_META};
+  if(!WK[form.wk]) form=blankForm(nextWorkout());
+  $("datamsg").textContent=tr("Program cleared. Your sessions were not touched.");
+  updateStatus(); renderForm(); renderHist();
+});
+
+/* program editor */
+function saveProgram(){
+  try{ localStorage.setItem("registro.program",JSON.stringify({name:PROGRAM_META.name,updated:today(),...RAW})); }catch(e){}
+  PROGRAM_META.updated=today();
+}
+function afterEdit(){ saveProgram(); localize(); if(!WK[form.wk]) form=blankForm(nextWorkout()); updateStatus(); renderEditor(); }
+let addingFor=null, libQuery="", wkDelArm=null, tplArm=false, tplSel="ul";
+function renderEditor(){
+  $("p-name").value=L(PROGRAM_META.name)||"";
+  $("p-new").textContent=tplArm?tr("Confirm"):tr("New empty program"); $("p-new").classList.toggle("confirm",tplArm);
+  const kindLbl=k=>k==="kg"?"kg":k==="time"?"sec":tr("reps");
+  $("p-wks").innerHTML=ORDER.map((K,wi)=>{
+    const w=RAW.WK[K], wl=WK[K];
+    const rows=w.items.length?w.items.map((it,i)=>{
+      const id=it[0], ex=EX[id]||{name:id,kind:"kg",lo:8,hi:10};
+      return `<div class="pe-row"><div class="pe-name">${esc(ex.name)}${(RAW.PERSIDE||{})[id]?` <span class="note">· ${tr("per side")}</span>`:""}</div>
+        <div class="pe-ctl"><input class="n" inputmode="numeric" data-sets="${K}:${i}" value="${it[1]}" aria-label="${tr("sets")}"><span>×</span>
+        <input class="n" inputmode="numeric" data-lo="${id}" value="${ex.lo}" aria-label="min"><span>–</span><input class="n" inputmode="numeric" data-hi="${id}" value="${ex.hi}" aria-label="max"><span>${kindLbl(ex.kind)}</span></div>
+        <div></div><div class="pe-ctl"><button type="button" class="ib" data-mv="${K}:${i}:-1" aria-label="${tr("Move up")}">↑</button><button type="button" class="ib" data-mv="${K}:${i}:1" aria-label="${tr("Move down")}">↓</button><button type="button" class="ib danger" data-rm="${K}:${i}" aria-label="${tr("Remove")}">✕</button></div></div>`;
+    }).join(""):`<div class="note">${tr("No exercises yet.")}</div>`;
+    const lib = addingFor===K ? libHTML(K) : `<button type="button" class="ib add" data-addex="${K}">${tr("+ Add exercise")}</button>`;
+    return `<article class="ex">
+      <div class="pe-two"><label class="f">${tr("Workout name")}<input data-wkname="${K}" value="${esc(wl.name)}"></label>
+      <label class="f">${tr("Subtitle")}<input data-wksub="${K}" value="${esc(wl.sub||"")}"></label></div>
+      <label class="f">${tr("Warm-up")}<select data-wkwarm="${K}">${["upper","lower","full","none"].map(o=>`<option value="${o}" ${(w.warm||"")===o?"selected":""}>${o==="none"?tr("None"):warmLabel(o)}</option>`).join("")}</select></label>
+      ${rows}
+      ${lib}
+      <div class="pe-ctl" style="justify-content:space-between"><span class="pe-ctl"><button type="button" class="ib" data-wkmv="${wi}:-1" aria-label="${tr("Move up")}">↑</button><button type="button" class="ib" data-wkmv="${wi}:1" aria-label="${tr("Move down")}">↓</button></span>
+      <button type="button" class="ib ${wkDelArm===K?"confirm":"danger"}" data-wkdel="${K}">${wkDelArm===K?tr("Confirm"):tr("Delete workout")}</button></div>
+    </article>`;
+  }).join("");
+  if(addingFor){ const q=$("lib-q"); if(q){ q.focus(); q.setSelectionRange(q.value.length,q.value.length); } }
+}
+function libHTML(K){
+  const q=libQuery.trim().toLowerCase();
+  const pool={...LIB.EX,...RAW.EX};
+  const ids=Object.keys(pool).filter(id=>{ const n=L(pool[id].name)||id; return !q||n.toLowerCase().includes(q); })
+    .sort((a,b)=>String(L(pool[a].name)).localeCompare(String(L(pool[b].name))));
+  const kindLbl=k=>k==="kg"?"kg":k==="time"?"sec":tr("reps");
+  return `<div class="lib"><div class="pe-two" style="grid-template-columns:1fr auto"><input id="lib-q" placeholder="${tr("Search exercises…")}" value="${esc(libQuery)}"><button type="button" class="ib" data-libclose="1">${tr("Close")}</button></div>
+    <div class="lib-list">${ids.length?ids.map(id=>`<button type="button" data-pick="${K}:${id}"><span>${esc(L(pool[id].name))}</span><small>${pool[id].lo}–${pool[id].hi} ${kindLbl(pool[id].kind)}</small></button>`).join(""):`<div class="note">${tr("No results")}</div>`}</div>
+    <div class="wsub">${tr("Or create your own")}</div>
+    <div class="pe-two"><input id="cx-name" placeholder="${tr("Name")}"><select id="cx-kind"><option value="kg">${tr("Weight (kg)")}</option><option value="bw">${tr("Bodyweight (reps)")}</option><option value="time">${tr("Time (sec)")}</option></select></div>
+    <button type="button" class="btn" data-cxcreate="${K}">${tr("Create")}</button></div>`;
+}
+function addExercise(K,id,fromLib){
+  if(!RAW.EX[id]&&fromLib){ RAW.EX[id]=JSON.parse(JSON.stringify(LIB.EX[id])); if(LIB.DESC[id]) RAW.DESC[id]=JSON.parse(JSON.stringify(LIB.DESC[id])); if(LIB.PERSIDE[id]){ RAW.PERSIDE=RAW.PERSIDE||{}; RAW.PERSIDE[id]=1; } }
+  RAW.WK[K].items.push([id,3]); addingFor=null; libQuery=""; afterEdit();
+}
+document.addEventListener("input",ev=>{ if(ev.target.id==="lib-q"){ libQuery=ev.target.value; const pos=ev.target.selectionStart; renderEditor(); } });
+document.addEventListener("change",ev=>{
+  const t=ev.target, d=t.dataset||{}; if(!$("view-prog")||$("view-prog").hidden) return;
+  const n=parseInt(t.value,10);
+  if(d.sets){ const [K,i]=d.sets.split(":"); if(n>0&&n<=20){ RAW.WK[K].items[+i][1]=n; } afterEdit(); }
+  else if(d.lo||d.hi){ const id=d.lo||d.hi, ex=RAW.EX[id]; if(ex&&n>0){ if(d.lo){ ex.lo=n; if(ex.hi<n) ex.hi=n; } else { ex.hi=n; if(ex.lo>n) ex.lo=n; } } afterEdit(); }
+  else if(d.wkname){ const v=t.value.trim(); if(v) RAW.WK[d.wkname].name=v; afterEdit(); }
+  else if(d.wksub!=null&&d.wksub!==undefined&&t.matches("[data-wksub]")){ RAW.WK[d.wksub].sub=t.value.trim(); afterEdit(); }
+  else if(d.wkwarm){ RAW.WK[d.wkwarm].warm=t.value; afterEdit(); }
+  else if(t.id==="p-name"){ const v=t.value.trim(); if(v){ PROGRAM_META.name=v; afterEdit(); } }
+});
+document.addEventListener("click",ev=>{
+  const b=ev.target.closest("button"); if(!b||!$("view-prog")||$("view-prog").hidden) return;
+  const d=b.dataset;
+  if(d.mv){ const [K,i,dir]=d.mv.split(":"); const a=RAW.WK[K].items, j=+i+ +dir; if(j>=0&&j<a.length){ [a[+i],a[j]]=[a[j],a[+i]]; afterEdit(); } }
+  else if(d.rm){ const [K,i]=d.rm.split(":"); RAW.WK[K].items.splice(+i,1); afterEdit(); }
+  else if(d.addex){ addingFor=d.addex; libQuery=""; renderEditor(); }
+  else if(d.libclose){ addingFor=null; renderEditor(); }
+  else if(d.pick){ const [K,id]=d.pick.split(":"); addExercise(K,id,true); }
+  else if(d.cxcreate){ const name=($("cx-name").value||"").trim(); if(!name) { $("cx-name").focus(); return; }
+    const kind=$("cx-kind").value, id="c_"+Date.now().toString(36);
+    RAW.EX[id]={name:{en:name,it:name},kind,lo:kind==="time"?30:8,hi:kind==="time"?45:12}; addExercise(d.cxcreate,id,false); }
+  else if(d.wkmv){ const [i,dir]=d.wkmv.split(":").map(Number), j=i+dir; if(j>=0&&j<RAW.ORDER.length){ const o=RAW.ORDER; [o[i],o[j]]=[o[j],o[i]]; afterEdit(); } }
+  else if(d.wkdel){ const K=d.wkdel;
+    if(RAW.ORDER.length<=1){ $("p-msg").textContent=tr("At least one workout is needed."); return; }
+    if(wkDelArm!==K){ wkDelArm=K; renderEditor(); setTimeout(()=>{ if(wkDelArm===K){ wkDelArm=null; renderEditor(); } },4000); return; }
+    wkDelArm=null; RAW.ORDER=RAW.ORDER.filter(x=>x!==K); delete RAW.WK[K]; afterEdit(); }
+  else if(b.id==="p-addwk"){ const K="W"+Date.now().toString(36); RAW.WK[K]={name:tr("Workout")+" "+(RAW.ORDER.length+1),sub:"",warm:"full",items:[]}; RAW.ORDER.push(K); addingFor=K; afterEdit(); }
+  else if(b.id==="p-new"){
+    if(!tplArm){ tplArm=true; $("p-msg").textContent=tr("This replaces the current program (sessions stay). Tap again to confirm."); renderEditor(); setTimeout(()=>{ if(tplArm){ tplArm=false; renderEditor(); } },5000); return; }
+    tplArm=false;
+    const ex={}; for(const [id,e] of Object.entries(RAW.EX)) if(id.startsWith("c_")) ex[id]=e;
+    RAW={EX:ex,WK:{W1:{name:tr("Workout")+" 1",sub:"",warm:"full",items:[]}},ORDER:["W1"],PERSIDE:{},DESC:{},WARM:JSON.parse(JSON.stringify(BASE_PROGRAM.WARM))};
+    PROGRAM_META={name:tr("My program"),updated:today()}; addingFor="W1"; afterEdit(); form=blankForm(nextWorkout());
+    $("p-msg").textContent=tr("New program created. Add your exercises.");
+  }
+});
+
+/* boot */
+sessions=loadSessions();
+const hadDraft=loadDraft(); if(hadDraft&&WK[form.wk]) autoPicked=true; else form=blankForm(nextWorkout());
+applyStatic(); renderForm(); renderHist(); updateStatus();
+$("btn-lang").addEventListener("click",()=>{ LANG=LANG==="it"?"en":"it"; try{ localStorage.setItem("miolog.lang",LANG); }catch(e){} localize(); applyStatic(); renderForm(); renderHist(); updateStatus(); if(!$("view-prog").hidden) renderEditor(); });
+try{ navigator.storage&&navigator.storage.persist&&navigator.storage.persist(); }catch(e){}
+if("serviceWorker" in navigator && location.protocol==="https:"){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
+</script>
+
+</body></html>
