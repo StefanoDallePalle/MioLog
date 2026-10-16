@@ -89,6 +89,11 @@ input.n{font-family:var(--f-num);text-align:center;padding:8px 4px;font-variant-
 .ex-h h3{margin:0;font-size:16px;font-weight:600;min-width:0}
 .target{font-family:var(--f-num);font-size:13px;color:var(--muted);white-space:nowrap}
 .last{font-size:13px;color:var(--muted)}
+.lastnote{font-size:13px;color:var(--muted);font-style:italic;border-left:2px solid var(--line);padding-left:8px}
+textarea.exnote{font-size:15px;resize:vertical;min-height:38px}
+.hist-sess li.exn{display:block;font-size:12.5px;color:var(--muted);font-style:italic;padding-left:10px;margin-top:-2px}
+.hist-sess .note{white-space:pre-line}
+td.exn{font-size:12.5px;color:var(--muted);font-style:italic;padding-top:0}
 .last .num{font-family:var(--f-num);color:var(--fg)}
 .pill{display:inline-block;font-size:12.5px;font-weight:600;padding:5px 9px;border-radius:7px;line-height:1.35}
 .pill.up{background:var(--up-soft);color:var(--up)} .pill.hold{background:var(--hold-soft);color:var(--hold)}
@@ -107,6 +112,17 @@ input.n{font-family:var(--f-num);text-align:center;padding:8px 4px;font-variant-
 .btn.danger{background:var(--down);color:var(--bg)}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .save .msg{font-size:13px;color:var(--muted);flex:1;min-width:0}
+.save{flex-wrap:wrap}
+.timer{display:flex;align-items:center;gap:6px;flex:1 1 100%;min-width:0;box-sizing:border-box;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.timer[hidden]{display:none}
+.timer .t{font:600 24px var(--f-num);font-variant-numeric:tabular-nums;min-width:62px}
+.timer .lbl{flex:1 1 0;min-width:0;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.timer .ib{flex:none;font:500 13px var(--f-num);padding:7px 8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:7px;cursor:pointer}
+.timer.done{background:var(--accent-soft);border-radius:9px;padding:6px 8px;border-bottom:0;animation:tpulse 1s ease-in-out 3}
+.timer.done .t{color:var(--accent)}
+@keyframes tpulse{50%{opacity:.55}}
+@media (prefers-reduced-motion:reduce){.timer.done{animation:none}}
+.restbtn{font:500 12px var(--f-num);padding:4px 8px;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:7px;cursor:pointer;white-space:nowrap}
 .note{font-size:13px;color:var(--muted)}
 .empty{background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:18px;color:var(--muted);font-size:14px}
 .hist-sess{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px}
@@ -173,6 +189,10 @@ tr:last-child td{border-bottom:0}
     <div id="exlist" class="wrap" style="gap:10px"></div>
     <label class="f" for="f-note">Session notes<textarea id="f-note" rows="2" placeholder="How it felt, aches, technique…"></textarea></label>
     <div class="save">
+      <div class="timer" id="timer" hidden role="timer" aria-live="off">
+        <span class="t" id="timer-t">0:00</span><span class="lbl" id="timer-lbl"></span>
+        <button type="button" class="ib" id="timer-minus">−15</button><button type="button" class="ib" id="timer-plus">+15</button><button type="button" class="ib" id="timer-stop" aria-label="Stop">✕</button>
+      </div>
       <span class="msg" id="savemsg">Empty sets are not saved.</span>
       <button class="btn" id="btn-save">Save session</button>
     </div>
@@ -249,7 +269,7 @@ const IT = {
  "Add the smallest jump (above {0} kg) and restart from {1} reps":"Aumenta il carico del minimo (oltre {0} kg) e riparti da {1} rip",
  "Reps dropping: stay at {0} kg or go a bit lighter":"Ripetizioni in calo: resta a {0} kg o scendi un po'",
  "Stay at {0} kg, aim for +1 rep":"Resta a {0} kg, punta a +1 rip",
- "Next":"Prossima","Editing the session of {0}.":"Stai modificando la seduta del {0}.","Cancel edit":"Annulla modifica",
+ "Next":"Prossima","Editing the session of {0}.":"Stai modificando la seduta del {0}.","Cancel edit":"Annulla modifica","Last note:":"Ultima nota:","Exercise note (technique, aches, setup…)":"Nota esercizio (tecnica, fastidi, setup…)","Note for {0}":"Nota per {0}","Rest":"Riposo","Rest over":"Riposo finito","Start rest timer":"Avvia timer di riposo","Rest (sec)":"Riposo (sec)","sec rest":"sec riposo","The session date is {0}, not today. Save with this date?":"La data della seduta è {0}, non oggi. Salvare con questa data?",
  "Last ({0}):":"Ultima ({0}):","No previous data":"Nessun dato precedente","set":"serie","/side":"/lato","Cable":"Cavo",
  "Reps left in the tank after the last set, even ugly ones (0 = couldn't do another)":"Ripetizioni ancora possibili a fine ultima serie, anche non pulite (0 = non ne usciva un'altra)",
  "Enter at least one set with reps.":"Inserisci almeno una serie con le ripetizioni.","{0} on {1} saved.":"{0} del {1} salvata.",
@@ -337,7 +357,7 @@ const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&g
 let db=null, sessions=[], editingId=null, autoPicked=false;
 let form = blankForm(nextWorkout());
 
-function blankForm(wk){ return {wk, date:today(), bw:"", note:"", vals:{}, rir:{}, alt:{}, warm:{}}; }
+function blankForm(wk){ return {wk, date:today(), dateManual:false, bw:"", note:"", vals:{}, rir:{}, alt:{}, warm:{}, exnote:{}}; }
 function pick(k,item){ const a=(form.alt||{})[k]; return a&&(a===item[0]||a===item[2])?a:item[0]; }
 function nextWorkout(){
   if(!sessions.length) return ORDER[0];
@@ -348,6 +368,12 @@ function nextWorkout(){
 /* draft: per-device convenience only */
 function saveDraft(){ try{ localStorage.setItem("draft",JSON.stringify({form,editingId})); }catch(e){} }
 function loadDraft(){ try{ const d=JSON.parse(localStorage.getItem("draft")||"null"); if(d&&d.form&&WK[d.form.wk]){ form=d.form; editingId=d.editingId||null; return true;} }catch(e){} return false; }
+/* keep the date current: the app may sit in background for days (iOS home-screen apps) */
+function syncDate(render){
+  if(editingId||form.dateManual) return false;
+  const t=today(); if(form.date===t) return false;
+  form.date=t; saveDraft(); if(render) renderForm(); return true;
+}
 function clearDraft(){ try{ localStorage.removeItem("draft"); }catch(e){} }
 
 function lastFor(exId, beforeDate){
@@ -403,8 +429,10 @@ function renderForm(){
     return `<article class="ex">
       <div class="ex-h"><h3>${ex.name}${infoBtn("e:"+id)}</h3><span class="target">${n} × ${ex.lo===ex.hi?ex.lo:ex.lo+"–"+ex.hi}${ex.kind==="time"?" sec":""}${PERSIDE[id]?tr("/side"):""}</span></div>
       ${infoBox("e:"+id,DESC[id])}
+      <div><button type="button" class="restbtn" data-restgo="${id}" aria-label="${tr("Start rest timer")}">⏱ ${tr("Rest")} ${fmtSec(restOf(ex))}</button></div>
       ${item[2]?`<div class="rir opts" style="gap:4px">${[item[0],item[2]].map(a=>`<button type="button" data-alt="${k}" data-id="${a}" aria-pressed="${a===id}">${a==="rem_trx"?"TRX":a==="rem_cavo"?tr("Cable"):EX[a].name}</button>`).join("")}</div>`:""}
       <div class="last">${lastTxt}</div>
+      ${last&&last.e.note?`<div class="lastnote">${tr("Last note:")} ${esc(last.e.note)}</div>`:""}
       <div><span class="pill ${sg.c}">${esc(sg.t)}</span></div>
       <div class="sets ${ex.kind==="kg"?"":"one"}">
         <span></span>${ex.kind==="kg"?'<span class="hd">kg</span>':""}<span class="hd">${unitOf(ex)}</span>
@@ -413,12 +441,14 @@ function renderForm(){
       <div class="rir"><span>${tr("Reps left in the tank after the last set, even ugly ones (0 = couldn't do another)")}</span><div class="opts">
         ${[0,1,2,3].map(x=>`<button type="button" data-rir="${id}" data-v="${x}" aria-pressed="${r===x}">${x===3?"3+":x}</button>`).join("")}
       </div></div>
+      <textarea class="exnote" rows="1" data-exnote="${id}" placeholder="${tr("Exercise note (technique, aches, setup…)")}" aria-label="${tr("Note for {0}",ex.name)}">${esc((form.exnote||{})[id]||"")}</textarea>
     </article>`;
   }).join("");
 }
 
+let orphanNotes=[];
 function collect(){
-  const entries={};
+  const entries={}; orphanNotes=[];
   for(const [k,item] of WK[form.wk].items.entries()){
     const id=pick(k,item), ex=EX[id], rows=form.vals[id]||{}, sets=[];
     for(const i of Object.keys(rows).sort((a,b)=>a-b)){
@@ -426,7 +456,9 @@ function collect(){
       const st={reps}; if(ex.kind==="kg"){ const k=num(rows[i].kg); st.kg=k==null?0:k; }
       sets.push(st);
     }
-    if(sets.length) entries[id]={sets, rir: form.rir[id]??null};
+    const nt=String((form.exnote||{})[id]||"").trim();
+    if(sets.length){ entries[id]={sets, rir: form.rir[id]??null}; if(nt) entries[id].note=nt; }
+    else if(nt) orphanNotes.push(`${ex.name}: ${nt}`);
   }
   return entries;
 }
@@ -434,8 +466,10 @@ function collect(){
 async function save(){
   const entries=collect();
   if(!Object.keys(entries).length){ $("savemsg").textContent=tr("Enter at least one set with reps."); return; }
+  syncDate(false);
+  if(!editingId&&form.date!==today()&&!confirm(tr("The session date is {0}, not today. Save with this date?",fmtDate(form.date)))) return;
   const id=`${form.date}_${form.wk}`;
-  const body={date:form.date, workout:form.wk, bodyweight:num(form.bw), note:form.note.trim(), entries, savedAt:new Date().toISOString()};
+  const body={date:form.date, workout:form.wk, bodyweight:num(form.bw), note:[form.note.trim(),...orphanNotes].filter(Boolean).join("\n"), entries, savedAt:new Date().toISOString()};
   $("btn-save").disabled=true;
   try{
     const prev=sessions;
@@ -462,7 +496,7 @@ function renderHist(){
   const list=[...sessions].sort((a,b)=>(b.date+b.savedAt).localeCompare(a.date+a.savedAt));
   $("sesslist").innerHTML=list.length?list.map(s=>`<div class="hist-sess">
     <div class="row"><strong>${WK[s.workout]?.name||s.workout}</strong><span class="d">${fmtDate(s.date)}${s.bodyweight?` · ${s.bodyweight} ${tr("kg bodyweight")}`:""}</span></div>
-    <ul>${Object.entries(s.entries||{}).map(([id,e])=>EX[id]?`<li><span>${EX[id].name}</span><span class="v">${esc(setsText(EX[id],e))}${e.rir!=null?` · RIR ${e.rir}`:""}</span></li>`:"").join("")}</ul>
+    <ul>${Object.entries(s.entries||{}).map(([id,e])=>EX[id]?`<li><span>${EX[id].name}</span><span class="v">${esc(setsText(EX[id],e))}${e.rir!=null?` · RIR ${e.rir}`:""}</span></li>${e.note?`<li class="exn">${esc(e.note)}</li>`:""}`:"").join("")}</ul>
     ${s.note?`<div class="note">${esc(s.note)}</div>`:""}
     <div class="actions"><button type="button" data-edit="${s.id}">${tr("Edit")}</button><button type="button" data-del="${s.id}">${tr("Delete")}</button></div>
   </div>`).join(""):`<div class="empty">${tr("No sessions yet. Fill in a workout and tap Save session: it will show up here.")}</div>`;
@@ -493,20 +527,73 @@ function renderExHist(id){
     </svg><div class="note">${ex.kind==="kg"?tr("Top load per session (kg)"):ex.kind==="time"?tr("Best time per session (sec)"):tr("Best reps per session")}</div></div>`;
   }
   const table=`<div class="tablewrap"><table><thead><tr><th>${tr("Date")}</th><th>${tr("Sets")}</th><th>RIR</th></tr></thead><tbody>
-    ${[...rows].reverse().map(s=>`<tr><td class="num">${fmtDate(s.date)}</td><td class="num">${esc(setsText(ex,s.entries[id]))}</td><td class="num">${s.entries[id].rir??"–"}</td></tr>`).join("")}
+    ${[...rows].reverse().map(s=>`<tr><td class="num">${fmtDate(s.date)}</td><td class="num">${esc(setsText(ex,s.entries[id]))}</td><td class="num">${s.entries[id].rir??"–"}</td></tr>${s.entries[id].note?`<tr><td></td><td colspan="2" class="exn">${esc(s.entries[id].note)}</td></tr>`:""}`).join("")}
   </tbody></table></div>`;
   $("exhist").innerHTML=chart+table;
 }
+
+/* rest timer: based on an end timestamp, so it stays right after the app was in background */
+const restOf = ex => (ex&&ex.rest>0) ? ex.rest : (ex&&ex.kind!=="time"&&ex.hi<=10 ? 90 : 60);
+const fmtSec = n => { n=Math.max(0,Math.ceil(n)); return `${Math.floor(n/60)}:${String(n%60).padStart(2,"0")}`; };
+let rest=null, restTick=null, restDone=new Set(), actx=null, wake=null;
+try{ const r=JSON.parse(localStorage.getItem("miolog.rest")||"null"); if(r&&r.end>Date.now()-60000) rest=r; }catch(e){}
+function restSave(){ try{ rest?localStorage.setItem("miolog.rest",JSON.stringify(rest)):localStorage.removeItem("miolog.rest"); }catch(e){} }
+function unlockAudio(){ try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==="suspended") actx.resume(); }catch(e){} }
+function beep(){
+  try{ if(!actx) return; const t0=actx.currentTime;
+    [0,0.25,0.5].forEach(d=>{ const o=actx.createOscillator(), g=actx.createGain(); o.frequency.value=880; g.gain.setValueAtTime(0.0001,t0+d); g.gain.exponentialRampToValueAtTime(0.4,t0+d+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t0+d+0.18); o.connect(g).connect(actx.destination); o.start(t0+d); o.stop(t0+d+0.2); });
+  }catch(e){}
+  try{ navigator.vibrate&&navigator.vibrate([200,100,200]); }catch(e){}
+}
+async function wakeOn(){ try{ if(!wake&&navigator.wakeLock) wake=await navigator.wakeLock.request("screen"); wake&&wake.addEventListener("release",()=>{wake=null;}); }catch(e){ wake=null; } }
+function wakeOff(){ try{ wake&&wake.release(); }catch(e){} wake=null; }
+function restStart(id){
+  const ex=EX[id]; if(!ex) return; const secs=restOf(ex);
+  rest={end:Date.now()+secs*1000,total:secs,id,label:ex.name,rang:false}; restSave(); wakeOn(); restRender();
+}
+function restStop(){ rest=null; restSave(); wakeOff(); restRender(); }
+function restAdd(d){ if(!rest) return; if(rest.rang){ rest.end=Date.now(); rest.rang=false; } rest.end+=d*1000; if(rest.end<=Date.now()) rest.end=Date.now(); restSave(); restRender(); }
+function restRender(){
+  const el=$("timer"); clearInterval(restTick); restTick=null;
+  if(!rest){ el.hidden=true; el.classList.remove("done"); $("savemsg").hidden=false; return; }
+  el.hidden=false; $("savemsg").hidden=true;
+  const upd=()=>{
+    if(!rest) return; const left=(rest.end-Date.now())/1000;
+    if(left>0){ el.classList.remove("done"); $("timer-t").textContent=fmtSec(left); $("timer-lbl").textContent=`${tr("Rest")} · ${rest.label}`; }
+    else{
+      $("timer-t").textContent="0:00"; $("timer-lbl").textContent=`${tr("Rest over")} · ${rest.label}`;
+      if(!rest.rang){ rest.rang=true; restSave(); el.classList.add("done"); if(document.visibilityState==="visible"&&Date.now()-rest.end<5000) beep(); wakeOff(); }
+      if(Date.now()-rest.end>60000){ restStop(); }
+    }
+  };
+  upd(); restTick=setInterval(upd,250);
+}
+$("timer-stop").addEventListener("click",restStop);
+$("timer-minus").addEventListener("click",()=>restAdd(-15));
+$("timer-plus").addEventListener("click",()=>restAdd(15));
+document.addEventListener("touchend",unlockAudio,{passive:true}); document.addEventListener("click",unlockAudio);
+document.addEventListener("click",ev=>{ const b=ev.target.closest&&ev.target.closest("[data-restgo]"); if(b){ unlockAudio(); restStart(b.dataset.restgo); } });
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"){ restRender(); if(rest&&!rest.rang) wakeOn(); } });
+/* auto-start: when the reps of the latest filled set of an exercise are entered (once per set) */
+document.addEventListener("change",ev=>{
+  const t=ev.target; if(!t.dataset||!t.dataset.ex||t.dataset.f!=="reps"||!t.value.trim()||editingId) return;
+  const id=t.dataset.ex, i=+t.dataset.i, rows=form.vals[id]||{};
+  const later=Object.keys(rows).some(j=>+j>i&&rows[j]&&String(rows[j].reps||"").trim());
+  const key=form.date+":"+id+":"+i; if(later||restDone.has(key)) return;
+  restDone.add(key); restStart(id);
+});
+restRender();
 
 /* events */
 document.addEventListener("input",ev=>{
   const t=ev.target;
   if(t.dataset&&t.dataset.ex){ const {ex,i,f}=t.dataset; form.vals[ex]=form.vals[ex]||{}; form.vals[ex][i]=form.vals[ex][i]||{}; form.vals[ex][i][f]=t.value; saveDraft(); }
   else if(t.id==="f-bw"){ form.bw=t.value; saveDraft(); }
+  else if(t.dataset&&t.dataset.exnote){ form.exnote=form.exnote||{}; form.exnote[t.dataset.exnote]=t.value; saveDraft(); }
   else if(t.id==="f-note"){ form.note=t.value; saveDraft(); }
 });
 document.addEventListener("change",ev=>{ const t=ev.target; if(t.dataset&&t.dataset.warm){ form.warm=form.warm||{}; form.warm[t.dataset.warm]=t.checked; saveDraft(); renderForm(); } });
-$("f-date").addEventListener("change",e=>{ form.date=e.target.value||today(); saveDraft(); renderForm(); });
+$("f-date").addEventListener("change",e=>{ form.date=e.target.value||today(); form.dateManual=form.date!==today(); saveDraft(); renderForm(); });
 $("f-ex").addEventListener("change",e=>renderExHist(e.target.value));
 $("btn-save").addEventListener("click",save);
 let delArm=null;
@@ -520,9 +607,9 @@ document.addEventListener("click",ev=>{
   else if(b.id==="btn-cancel-edit"){ editingId=null; clearDraft(); form=blankForm(nextWorkout()); renderForm(); }
   else if(b.dataset.edit){
     const s=sessions.find(x=>x.id===b.dataset.edit); if(!s) return;
-    editingId=s.id; form={wk:s.workout,date:s.date,bw:s.bodyweight??"",note:s.note||"",vals:{},rir:{},alt:{}};
+    editingId=s.id; form={wk:s.workout,date:s.date,bw:s.bodyweight??"",note:s.note||"",vals:{},rir:{},alt:{},exnote:{}};
     (WK[s.workout]?.items||[]).forEach((it,k)=>{ if(it[2]&&s.entries&&s.entries[it[2]]) form.alt[k]=it[2]; });
-    for(const [id,e] of Object.entries(s.entries||{})){ form.vals[id]={}; e.sets.forEach((st,i)=>form.vals[id][i]={reps:String(st.reps),kg:st.kg!=null?String(st.kg):""}); if(e.rir!=null) form.rir[id]=e.rir; }
+    for(const [id,e] of Object.entries(s.entries||{})){ form.vals[id]={}; e.sets.forEach((st,i)=>form.vals[id][i]={reps:String(st.reps),kg:st.kg!=null?String(st.kg):""}); if(e.rir!=null) form.rir[id]=e.rir; if(e.note) form.exnote[id]=e.note; }
     saveDraft(); renderForm(); showTab("log"); window.scrollTo({top:0});
   }
   else if(b.dataset.del){
@@ -627,7 +714,7 @@ function renderEditor(){
       const id=it[0], ex=EX[id]||{name:id,kind:"kg",lo:8,hi:10};
       return `<div class="pe-row"><div class="pe-name">${esc(ex.name)}${(RAW.PERSIDE||{})[id]?` <span class="note">· ${tr("per side")}</span>`:""}</div>
         <div class="pe-ctl"><input class="n" inputmode="numeric" data-sets="${K}:${i}" value="${it[1]}" aria-label="${tr("sets")}"><span>×</span>
-        <input class="n" inputmode="numeric" data-lo="${id}" value="${ex.lo}" aria-label="min"><span>–</span><input class="n" inputmode="numeric" data-hi="${id}" value="${ex.hi}" aria-label="max"><span>${kindLbl(ex.kind)}</span></div>
+        <input class="n" inputmode="numeric" data-lo="${id}" value="${ex.lo}" aria-label="min"><span>–</span><input class="n" inputmode="numeric" data-hi="${id}" value="${ex.hi}" aria-label="max"><span>${kindLbl(ex.kind)}</span><span>·</span><input class="n" inputmode="numeric" data-resto="${id}" value="${restOf(ex)}" aria-label="${tr("Rest (sec)")}"><span>${tr("sec rest")}</span></div>
         <div></div><div class="pe-ctl"><button type="button" class="ib" data-mv="${K}:${i}:-1" aria-label="${tr("Move up")}">↑</button><button type="button" class="ib" data-mv="${K}:${i}:1" aria-label="${tr("Move down")}">↓</button><button type="button" class="ib danger" data-rm="${K}:${i}" aria-label="${tr("Remove")}">✕</button></div></div>`;
     }).join(""):`<div class="note">${tr("No exercises yet.")}</div>`;
     const lib = addingFor===K ? libHTML(K) : `<button type="button" class="ib add" data-addex="${K}">${tr("+ Add exercise")}</button>`;
@@ -665,6 +752,7 @@ document.addEventListener("change",ev=>{
   const n=parseInt(t.value,10);
   if(d.sets){ const [K,i]=d.sets.split(":"); if(n>0&&n<=20){ RAW.WK[K].items[+i][1]=n; } afterEdit(); }
   else if(d.lo||d.hi){ const id=d.lo||d.hi, ex=RAW.EX[id]; if(ex&&n>0){ if(d.lo){ ex.lo=n; if(ex.hi<n) ex.hi=n; } else { ex.hi=n; if(ex.lo>n) ex.lo=n; } } afterEdit(); }
+  else if(d.resto){ const ex=RAW.EX[d.resto]; if(ex&&n>=10&&n<=600) ex.rest=n; afterEdit(); }
   else if(d.wkname){ const v=t.value.trim(); if(v) RAW.WK[d.wkname].name=v; afterEdit(); }
   else if(d.wksub!=null&&d.wksub!==undefined&&t.matches("[data-wksub]")){ RAW.WK[d.wksub].sub=t.value.trim(); afterEdit(); }
   else if(d.wkwarm){ RAW.WK[d.wkwarm].warm=t.value; afterEdit(); }
@@ -700,6 +788,9 @@ document.addEventListener("click",ev=>{
 /* boot */
 sessions=loadSessions();
 const hadDraft=loadDraft(); if(hadDraft&&WK[form.wk]) autoPicked=true; else form=blankForm(nextWorkout());
+syncDate(false);
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") syncDate(true); });
+window.addEventListener("pageshow",()=>syncDate(true));
 applyStatic(); renderForm(); renderHist(); updateStatus();
 $("btn-lang").addEventListener("click",()=>{ LANG=LANG==="it"?"en":"it"; try{ localStorage.setItem("miolog.lang",LANG); }catch(e){} localize(); applyStatic(); renderForm(); renderHist(); updateStatus(); if(!$("view-prog").hidden) renderEditor(); });
 try{ navigator.storage&&navigator.storage.persist&&navigator.storage.persist(); }catch(e){}
