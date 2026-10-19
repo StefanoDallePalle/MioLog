@@ -111,14 +111,15 @@ td.exn{font-size:12.5px;color:var(--muted);font-style:italic;padding-top:0}
 .btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
 .btn.danger{background:var(--down);color:var(--bg)}
 .btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.ghost.confirm{background:var(--down);color:var(--bg);border-color:var(--down)}
 .save .msg{font-size:13px;color:var(--muted);flex:1;min-width:0}
 .save{flex-wrap:wrap}
-.timer{display:flex;align-items:center;gap:6px;flex:1 1 100%;min-width:0;box-sizing:border-box;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.timer{display:flex;align-items:center;gap:6px;position:absolute;left:0;right:0;bottom:calc(100% + 8px);box-sizing:border-box;padding:8px 10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,.12)}
 .timer[hidden]{display:none}
 .timer .t{font:600 24px var(--f-num);font-variant-numeric:tabular-nums;min-width:62px}
 .timer .lbl{flex:1 1 0;min-width:0;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .timer .ib{flex:none;font:500 13px var(--f-num);padding:7px 8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:7px;cursor:pointer}
-.timer.done{background:var(--accent-soft);border-radius:9px;padding:6px 8px;border-bottom:0;animation:tpulse 1s ease-in-out 3}
+.timer.done{background:var(--accent-soft);border-color:var(--accent);animation:tpulse 1s ease-in-out 3}
 .timer.done .t{color:var(--accent)}
 @keyframes tpulse{50%{opacity:.55}}
 @media (prefers-reduced-motion:reduce){.timer.done{animation:none}}
@@ -183,7 +184,6 @@ tr:last-child td{border-bottom:0}
     <div class="picker" id="picker"></div>
     <div class="meta">
       <label class="f" for="f-date">Date<input type="date" id="f-date"></label>
-      <label class="f" for="f-bw">Bodyweight (kg)<input class="n" id="f-bw" inputmode="decimal" placeholder="optional"></label>
     </div>
     <div id="editing" class="note" hidden></div>
     <div id="exlist" class="wrap" style="gap:10px"></div>
@@ -194,6 +194,7 @@ tr:last-child td{border-bottom:0}
         <button type="button" class="ib" id="timer-minus">−15</button><button type="button" class="ib" id="timer-plus">+15</button><button type="button" class="ib" id="timer-stop" aria-label="Stop">✕</button>
       </div>
       <span class="msg" id="savemsg">Empty sets are not saved.</span>
+      <button class="btn ghost" id="btn-discard">Discard</button>
       <button class="btn" id="btn-save">Save session</button>
     </div>
   </section>
@@ -210,6 +211,16 @@ tr:last-child td{border-bottom:0}
   </section>
 
   <section id="view-hist" class="wrap" style="gap:12px" hidden>
+    <h2 id="h-weight">Bodyweight</h2>
+    <div class="hist-sess" id="weightpanel">
+      <div class="meta">
+        <label class="f" for="w-date" id="lab-w-date">Date<input type="date" id="w-date"></label>
+        <label class="f" for="w-kg" id="lab-w-kg">kg<input class="n" id="w-kg" inputmode="decimal" placeholder="kg"></label>
+      </div>
+      <div class="actions"><button type="button" id="btn-w-add">Add weigh-in</button></div>
+      <div class="note" id="wsummary"></div>
+      <ul id="wlist"></ul>
+    </div>
     <label class="f" for="f-ex">Exercise<select id="f-ex"></select></label>
     <div id="exhist" class="wrap" style="gap:10px"></div>
     <h2 id="h-sessions">Sessions</h2>
@@ -269,7 +280,7 @@ const IT = {
  "Add the smallest jump (above {0} kg) and restart from {1} reps":"Aumenta il carico del minimo (oltre {0} kg) e riparti da {1} rip",
  "Reps dropping: stay at {0} kg or go a bit lighter":"Ripetizioni in calo: resta a {0} kg o scendi un po'",
  "Stay at {0} kg, aim for +1 rep":"Resta a {0} kg, punta a +1 rip",
- "Next":"Prossima","Editing the session of {0}.":"Stai modificando la seduta del {0}.","Cancel edit":"Annulla modifica","Last note:":"Ultima nota:","Exercise note (technique, aches, setup…)":"Nota esercizio (tecnica, fastidi, setup…)","Note for {0}":"Nota per {0}","Rest":"Riposo","Rest over":"Riposo finito","Start rest timer":"Avvia timer di riposo","Rest (sec)":"Riposo (sec)","sec rest":"sec riposo","The session date is {0}, not today. Save with this date?":"La data della seduta è {0}, non oggi. Salvare con questa data?",
+ "Next":"Prossima","Editing the session of {0}.":"Stai modificando la seduta del {0}.","Cancel edit":"Annulla modifica","Bodyweight":"Peso corporeo","Add weigh-in":"Aggiungi pesata","No weigh-ins yet. Weigh yourself when you can: once a week is enough.":"Ancora nessuna pesata. Pesati quando puoi: una volta a settimana basta.","Latest: {0} kg on {1}":"Ultima: {0} kg il {1}","since {0}":"dal {0}","Enter a valid weight in kg.":"Inserisci un peso valido in kg.","Weigh-ins: {0} new or updated.":"Pesate: {0} nuove o aggiornate.","Discard":"Annulla","Edit cancelled: the saved session is unchanged.":"Modifica annullata: la seduta salvata non è cambiata.","Session discarded: nothing was saved.":"Seduta annullata: non è stato salvato nulla.","Last note:":"Ultima nota:","Exercise note (technique, aches, setup…)":"Nota esercizio (tecnica, fastidi, setup…)","Note for {0}":"Nota per {0}","Rest":"Riposo","Rest over":"Riposo finito","Start rest timer":"Avvia timer di riposo","Rest (sec)":"Riposo (sec)","sec rest":"sec riposo","The session date is {0}, not today. Save with this date?":"La data della seduta è {0}, non oggi. Salvare con questa data?",
  "Last ({0}):":"Ultima ({0}):","No previous data":"Nessun dato precedente","set":"serie","/side":"/lato","Cable":"Cavo",
  "Reps left in the tank after the last set, even ugly ones (0 = couldn't do another)":"Ripetizioni ancora possibili a fine ultima serie, anche non pulite (0 = non ne usciva un'altra)",
  "Enter at least one set with reps.":"Inserisci almeno una serie con le ripetizioni.","{0} on {1} saved.":"{0} del {1} salvata.",
@@ -310,11 +321,12 @@ function applyStatic(){
   $("brand-sub").textContent=tr("Training log");
   txt("tab-log","Workout"); txt("tab-hist","History"); txt("tab-prog","Program");
   lab("p-name","Program name"); txt("p-new","New empty program"); txt("p-addwk","+ Add workout"); txt("p-help","Changes are saved automatically on this device. Your sessions are never touched. Rep ranges apply to the exercise everywhere it appears.");
-  lab("f-date","Date"); lab("f-bw","Bodyweight (kg)"); lab("f-note","Session notes"); lab("f-ex","Exercise");
-  $("f-bw").placeholder=tr("optional"); $("f-note").placeholder=tr("How it felt, aches, technique…");
+  lab("f-date","Date"); lab("f-note","Session notes"); lab("f-ex","Exercise");
+  $("f-note").placeholder=tr("How it felt, aches, technique…");
   if(!$("btn-save").disabled) txt("btn-save","Save session");
+  if(!$("btn-discard").classList.contains("confirm")) txt("btn-discard","Discard");
   txt("savemsg","Empty sets are not saved.");
-  txt("h-sessions","Sessions"); txt("h-data","Data & program");
+  txt("h-sessions","Sessions"); txt("h-weight","Bodyweight"); txt("btn-w-add","Add weigh-in"); $("lab-w-date").firstChild.textContent=tr("Date"); txt("h-data","Data & program");
   txt("btn-export","Export data"); txt("btn-import","Import file (data or program)"); if(!resetArm) txt("btn-reset-prog","Clear program");
   txt("disclaimer","MioLog is a logging tool: it does not provide training or medical advice. Choose exercises and loads under your own responsibility, ideally with a qualified professional.");
   txt("privacy","MioLog never connects to any server: sessions and program stay on this device. They only leave when you export them.");
@@ -412,7 +424,7 @@ function renderPicker(){
 function v(id,i,f){ return (form.vals[id]&&form.vals[id][i]&&form.vals[id][i][f])??""; }
 function renderForm(){
   renderPicker();
-  $("f-date").value=form.date; $("f-bw").value=form.bw; $("f-note").value=form.note;
+  $("f-date").value=form.date; $("f-note").value=form.note;
   $("editing").hidden=!editingId;
   if(editingId) $("editing").innerHTML=`${tr("Editing the session of {0}.",fmtDate(form.date))} <button class="actions" style="all:unset;color:var(--accent);cursor:pointer;font-weight:600" id="btn-cancel-edit">${tr("Cancel edit")}</button>`;
   $("exlist").innerHTML=(WK[form.wk].items.length?"":`<div class="empty">${tr("No exercises yet: build your program in the Program tab.")}</div>`)+warmHTML()+WK[form.wk].items.map((item,k)=>{
@@ -487,6 +499,7 @@ function nextWorkoutAfter(wk){ return ORDER[(ORDER.indexOf(wk)+1)%ORDER.length];
 
 /* history */
 function renderHist(){
+  renderWeights();
   const sel=$("f-ex"); const cur=sel.value||"goblet";
   const used=Object.keys(EX).filter(id=>sessions.some(s=>s.entries&&s.entries[id]));
   const ids=used.length?used:Object.keys(EX);
@@ -532,6 +545,35 @@ function renderExHist(id){
   $("exhist").innerHTML=chart+table;
 }
 
+/* bodyweight log: independent from sessions, one value per date */
+const WKEY="registro.weights";
+function loadWeights(){ try{ const a=JSON.parse(localStorage.getItem(WKEY)||"[]"); return Array.isArray(a)?a.filter(w=>w&&w.date&&typeof w.kg==="number"):[]; }catch(e){ return []; } }
+function persistWeights(){ try{ localStorage.setItem(WKEY,JSON.stringify(weights)); return true; }catch(e){ return false; } }
+let weights=loadWeights(), wDelArm=null;
+function migrateBw(){ let ch=false; for(const s of sessions){ if(typeof s.bodyweight==="number"&&s.bodyweight>0&&!weights.some(w=>w.date===s.date)){ weights.push({date:s.date,kg:s.bodyweight}); ch=true; } } if(ch) persistWeights(); }
+function renderWeights(){
+  if(!$("w-date").value) $("w-date").value=today();
+  const list=[...weights].sort((a,b)=>b.date.localeCompare(a.date));
+  if(!list.length){ $("wsummary").textContent=tr("No weigh-ins yet. Weigh yourself when you can: once a week is enough."); $("wlist").innerHTML=""; return; }
+  const last=list[0], prev=list[1];
+  const d=prev?last.kg-prev.kg:null;
+  $("wsummary").textContent=tr("Latest: {0} kg on {1}",last.kg,fmtDate(last.date))+(d!=null?` · ${d>0?"+":""}${(+d.toFixed(1))} kg ${tr("since {0}",fmtDate(prev.date))}`:"");
+  $("wlist").className=""; $("wlist").style.cssText="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;font-size:13.5px";
+  $("wlist").innerHTML=list.slice(0,10).map(w=>`<li style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span class="num">${fmtDate(w.date)}</span><span class="num" style="flex:1;text-align:right">${w.kg} kg</span><span class="actions"><button type="button" data-wdel="${w.date}">${tr("Delete")}</button></span></li>`).join("");
+}
+$("btn-w-add").addEventListener("click",()=>{
+  const kg=num($("w-kg").value), date=$("w-date").value||today();
+  if(kg==null||kg<25||kg>350){ $("wsummary").textContent=tr("Enter a valid weight in kg."); return; }
+  weights=weights.filter(w=>w.date!==date).concat([{date,kg}]);
+  if(!persistWeights()){ $("wsummary").textContent=tr("Save failed: browser storage is unavailable. Export your data so you don't lose it."); return; }
+  $("w-kg").value=""; $("w-date").value=today(); renderWeights();
+});
+document.addEventListener("click",ev=>{
+  const b=ev.target.closest&&ev.target.closest("[data-wdel]"); if(!b) return;
+  if(wDelArm!==b){ if(wDelArm){ wDelArm.classList.remove("confirm"); wDelArm.textContent=tr("Delete"); } wDelArm=b; b.classList.add("confirm"); b.textContent=tr("Confirm"); setTimeout(()=>{ if(wDelArm===b){ b.classList.remove("confirm"); b.textContent=tr("Delete"); wDelArm=null; } },4000); return; }
+  wDelArm=null; weights=weights.filter(w=>w.date!==b.dataset.wdel); persistWeights(); renderWeights();
+});
+
 /* rest timer: based on an end timestamp, so it stays right after the app was in background */
 const restOf = ex => (ex&&ex.rest>0) ? ex.rest : (ex&&ex.kind!=="time"&&ex.hi<=10 ? 90 : 60);
 const fmtSec = n => { n=Math.max(0,Math.ceil(n)); return `${Math.floor(n/60)}:${String(n%60).padStart(2,"0")}`; };
@@ -555,8 +597,8 @@ function restStop(){ rest=null; restSave(); wakeOff(); restRender(); }
 function restAdd(d){ if(!rest) return; if(rest.rang){ rest.end=Date.now(); rest.rang=false; } rest.end+=d*1000; if(rest.end<=Date.now()) rest.end=Date.now(); restSave(); restRender(); }
 function restRender(){
   const el=$("timer"); clearInterval(restTick); restTick=null;
-  if(!rest){ el.hidden=true; el.classList.remove("done"); $("savemsg").hidden=false; return; }
-  el.hidden=false; $("savemsg").hidden=true;
+  if(!rest){ el.hidden=true; el.classList.remove("done"); return; }
+  el.hidden=false;
   const upd=()=>{
     if(!rest) return; const left=(rest.end-Date.now())/1000;
     if(left>0){ el.classList.remove("done"); $("timer-t").textContent=fmtSec(left); $("timer-lbl").textContent=`${tr("Rest")} · ${rest.label}`; }
@@ -588,7 +630,6 @@ restRender();
 document.addEventListener("input",ev=>{
   const t=ev.target;
   if(t.dataset&&t.dataset.ex){ const {ex,i,f}=t.dataset; form.vals[ex]=form.vals[ex]||{}; form.vals[ex][i]=form.vals[ex][i]||{}; form.vals[ex][i][f]=t.value; saveDraft(); }
-  else if(t.id==="f-bw"){ form.bw=t.value; saveDraft(); }
   else if(t.dataset&&t.dataset.exnote){ form.exnote=form.exnote||{}; form.exnote[t.dataset.exnote]=t.value; saveDraft(); }
   else if(t.id==="f-note"){ form.note=t.value; saveDraft(); }
 });
@@ -596,6 +637,15 @@ document.addEventListener("change",ev=>{ const t=ev.target; if(t.dataset&&t.data
 $("f-date").addEventListener("change",e=>{ form.date=e.target.value||today(); form.dateManual=form.date!==today(); saveDraft(); renderForm(); });
 $("f-ex").addEventListener("change",e=>renderExHist(e.target.value));
 $("btn-save").addEventListener("click",save);
+let discardArm=null;
+$("btn-discard").addEventListener("click",()=>{
+  const b=$("btn-discard");
+  if(!discardArm){ b.classList.add("confirm"); b.textContent=tr("Confirm"); discardArm=setTimeout(()=>{ discardArm=null; b.classList.remove("confirm"); b.textContent=tr("Discard"); },4000); return; }
+  clearTimeout(discardArm); discardArm=null; b.classList.remove("confirm"); b.textContent=tr("Discard");
+  const wasEditing=!!editingId, wk=form.wk; editingId=null; clearDraft();
+  form=blankForm(wasEditing?nextWorkout():wk); restDone.clear(); restStop(); renderForm();
+  $("savemsg").textContent=wasEditing?tr("Edit cancelled: the saved session is unchanged."):tr("Session discarded: nothing was saved.");
+});
 let delArm=null;
 document.addEventListener("click",ev=>{
   const b=ev.target.closest("button"); if(!b) return;
@@ -651,6 +701,7 @@ $("btn-export").addEventListener("click",async()=>{
   const now=new Date().toISOString();
   const how=await download(`miolog-${today()}.json`,{app:"registro-carichi",type:"dati",version:1,exportedAt:now,
     sessions:[...sessions].sort((a,b)=>a.date.localeCompare(b.date)),
+    weights:[...weights].sort((a,b)=>a.date.localeCompare(b.date)),
     program:{name:PROGRAM_META.name,updated:PROGRAM_META.updated,...RAW}});
   if(how==="abort"){ $("datamsg").textContent=tr("Export cancelled."); return; }
   try{ localStorage.setItem("registro.lastBackup",now); }catch(e){}
@@ -681,6 +732,12 @@ $("file-import").addEventListener("change",async ev=>{
     if(!persist()){ sessions=prev; msgs.push(tr("Couldn't save the imported sessions.")); }
     else msgs.push(tr("Sessions: {0} added, {1} updated, {2} already there.",added,updated,ok.length-added-updated));
   }
+  if(obj&&Array.isArray(obj.weights)){
+    const inc=obj.weights.filter(w=>w&&w.date&&typeof w.kg==="number"); const m=new Map(weights.map(w=>[w.date,w])); let n=0;
+    for(const w of inc){ const c=m.get(w.date); if(!c||c.kg!==w.kg){ m.set(w.date,{date:w.date,kg:w.kg}); n++; } }
+    weights=[...m.values()]; persistWeights(); if(inc.length) msgs.push(tr("Weigh-ins: {0} new or updated.",n));
+  }
+  if(obj&&Array.isArray(obj.sessions)){ let ch=false; for(const s of obj.sessions){ if(s&&typeof s.bodyweight==="number"&&s.bodyweight>0&&!weights.some(w=>w.date===s.date)){ weights.push({date:s.date,kg:s.bodyweight}); ch=true; } } if(ch) persistWeights(); }
   if(!msgs.length) msgs.push(tr("The file contains neither sessions nor a recognizable program."));
   $("datamsg").textContent=msgs.join(" ");
   if(!autoPicked&&!editingId) form.wk=nextWorkout();
@@ -786,7 +843,7 @@ document.addEventListener("click",ev=>{
 });
 
 /* boot */
-sessions=loadSessions();
+sessions=loadSessions(); migrateBw();
 const hadDraft=loadDraft(); if(hadDraft&&WK[form.wk]) autoPicked=true; else form=blankForm(nextWorkout());
 syncDate(false);
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") syncDate(true); });
